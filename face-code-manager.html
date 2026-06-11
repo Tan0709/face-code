@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>脸码收纳册</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#F8F7F5">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="脸码收纳册">
+<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎀</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #F8F7F5;
+    --card: #FFFFFF;
+    --accent: #C4AADC;
+    --accent-dark: #9B7EC4;
+    --text: #5A5468;
+    --text-light: #A8A0B8;
+    --text-lighter: #D4D0DC;
+    --border: #EDEAEF;
+    --tag-girl: #F0E6F5;
+    --tag-adult: #E8F0FA;
+    --tag-cn: #E4F5E8;
+    --tag-sea: #FAF0E4;
+    --tag-both: #EEE8FA;
+    --tag-girl-txt: #9060A0;
+    --tag-adult-txt: #4070A8;
+    --tag-cn-txt: #408050;
+    --tag-sea-txt: #906030;
+    --tag-both-txt: #6050A0;
+    --shadow: 0 2px 16px rgba(180,165,200,0.10);
+    --shadow-md: 0 4px 24px rgba(180,165,200,0.14);
+    --radius: 20px;
+    --radius-sm: 14px;
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    font-family: 'Noto Sans SC', -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    font-weight: 400;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100dvh;
+    padding-bottom: calc(100px + var(--safe-bottom));
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ── Header ── */
+  .header {
+    background: var(--card);
+    padding: 15px 18px 13px;
+    border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; z-index: 50;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .header-title {
+    font-size: 18px; font-weight: 600; letter-spacing: 1px; color: var(--text);
+  }
+  .header-btn {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: var(--bg); border: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; transition: all 0.2s; color: var(--text-light);
+  }
+  .header-btn:active { transform: scale(0.88); background: var(--border); }
+
+  /* ── Stats ── */
+  .stats {
+    display: flex; justify-content: space-between;
+    padding: 10px 18px;
+    background: var(--card);
+    border-bottom: 1px solid var(--border);
+    position: sticky; top: 57px; z-index: 45;
+  }
+  .stat { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--text-light); }
+  .dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+  .dot.p { background: var(--accent); }
+  .dot.b { background: #A8C0DC; }
+  .dot.g { background: #A8D8B8; }
+  .dot.o { background: #DCC8A8; }
+  .n { font-weight: 600; color: var(--text); }
+
+  /* ── Filters ── */
+  .filters {
+    background: var(--card);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 14px 6px;
+    position: sticky; top: 102px; z-index: 40;
+  }
+  .filter-row { display: flex; gap: 6px; align-items: center; overflow-x: auto; padding-bottom: 6px; scrollbar-width: none; }
+  .filter-row::-webkit-scrollbar { display: none; }
+  .filter-lbl { font-size: 11px; color: var(--text-lighter); white-space: nowrap; flex-shrink: 0; margin-right: 2px; }
+  .fbtn {
+    padding: 5px 13px; border-radius: 20px;
+    border: 1.5px solid var(--border); background: var(--card);
+    font-size: 12px; cursor: pointer; transition: all 0.2s;
+    color: var(--text-light); white-space: nowrap; flex-shrink: 0;
+    font-family: inherit; font-weight: 400;
+  }
+  .fbtn:active { transform: scale(0.95); }
+  .fbtn.on { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 500; }
+
+  /* ── Search ── */
+  .search { background: var(--card); border-bottom: 1px solid var(--border); padding: 10px 14px; }
+  .search-box {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--bg); border: 1.5px solid var(--border);
+    border-radius: 14px; padding: 9px 14px; transition: all 0.2s;
+  }
+  .search-box:focus-within { border-color: var(--accent); background: var(--card); box-shadow: var(--shadow); }
+  .search-box input {
+    flex: 1; border: none; background: transparent;
+    font-size: 14px; color: var(--text); outline: none; font-family: inherit;
+  }
+  .search-box input::placeholder { color: var(--text-lighter); }
+  .search-i { font-size: 13px; opacity: 0.4; flex-shrink: 0; }
+
+  /* ── Grid ── */
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 14px; }
+  .card {
+    background: var(--card); border-radius: var(--radius);
+    box-shadow: var(--shadow); overflow: hidden;
+    cursor: pointer; transition: transform 0.18s, box-shadow 0.18s;
+  }
+  .card:active { transform: scale(0.96); box-shadow: none; }
+  .ci-wrap {
+    width: 100%; aspect-ratio: 3/4;
+    background: linear-gradient(145deg, #F5F0FA 0%, #F0F5FA 100%);
+    position: relative; overflow: hidden;
+  }
+  .ci { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .ci-ph { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 26px; opacity: 0.3; }
+  .ci-dot { position: absolute; top: 5px; left: 5px; width: 7px; height: 7px; border-radius: 50%; background: #A8D0B8; border: 1.5px solid #fff; }
+  .ci-badge { position: absolute; top: 5px; right: 5px; font-size: 8px; padding: 2px 6px; border-radius: 8px; font-weight: 500; opacity: 0.85; }
+  .cb { padding: 9px 9px 10px; }
+  .cn { font-size: 12px; font-weight: 500; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 5px; }
+  .ctags { display: flex; gap: 3px; flex-wrap: wrap; }
+  .ctag { font-size: 9px; padding: 1px 6px; border-radius: 8px; font-weight: 400; }
+  .ctag.g { background: var(--tag-girl); color: var(--tag-girl-txt); }
+  .ctag.a { background: var(--tag-adult); color: var(--tag-adult-txt); }
+  .ctag.c { background: var(--tag-cn); color: var(--tag-cn-txt); }
+  .ctag.s { background: var(--tag-sea); color: var(--tag-sea-txt); }
+  .ctag.b { background: var(--tag-both); color: var(--tag-both-txt); }
+
+  .empty { grid-column: 1/-1; text-align: center; padding: 70px 20px; color: var(--text-lighter); }
+  .empty-ic { font-size: 44px; margin-bottom: 12px; opacity: 0.4; }
+
+  /* ── FAB ── */
+  .fab {
+    position: fixed; right: 16px; bottom: calc(20px + var(--safe-bottom));
+    width: 52px; height: 52px; border-radius: 50%;
+    background: var(--accent); color: #fff;
+    font-size: 22px; border: none; cursor: pointer;
+    box-shadow: var(--shadow-md);
+    z-index: 100; display: flex; align-items: center; justify-content: center;
+    transition: transform 0.2s; line-height: 1;
+  }
+  .fab:active { transform: scale(0.88); }
+
+  /* ── FAB Menu ── */
+  .fab-backdrop { display: none; position: fixed; inset: 0; z-index: 98; background: rgba(248,247,245,0.7); backdrop-filter: blur(3px); }
+  .fab-backdrop.show { display: block; }
+  .fab-menu { display: none; flex-direction: column; gap: 8px; position: fixed; right: 16px; bottom: calc(80px + var(--safe-bottom)); z-index: 99; }
+  .fab-menu.show { display: flex; }
+  .fab-menu-item {
+    background: var(--card); border: none; border-radius: var(--radius-sm);
+    padding: 11px 18px; font-size: 13px; font-weight: 400;
+    cursor: pointer; color: var(--text); font-family: inherit;
+    box-shadow: var(--shadow); white-space: nowrap;
+    display: flex; align-items: center; gap: 8px;
+    transition: all 0.18s;
+  }
+  .fab-menu-item:active { transform: scale(0.96); background: var(--bg); }
+  .fab-menu-item span { font-size: 15px; }
+
+  /* ── Modals ── */
+  .modal-ov { display: none; position: fixed; inset: 0; z-index: 200; align-items: flex-end; justify-content: center; background: rgba(248,247,245,0.75); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+  .modal-ov.open { display: flex; }
+  .modal {
+    background: var(--card); border-radius: 24px 24px 0 0;
+    width: 100%; max-width: 560px; max-height: 92dvh; overflow-y: auto;
+    padding: 10px 18px calc(28px + var(--safe-bottom));
+    animation: slideUp 0.35s cubic-bezier(0.25,0.86,0.45,1);
+    -webkit-overflow-scrolling: touch;
+  }
+  @keyframes slideUp { from { transform: translateY(60px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+  .mh { width: 36px; height: 4px; background: var(--border); border-radius: 2px; margin: 0 auto 14px; }
+  .mtitle { font-size: 18px; font-weight: 600; text-align: center; margin-bottom: 20px; color: var(--text); letter-spacing: 0.5px; }
+
+  /* ── Form ── */
+  .fl { font-size: 12px; color: var(--text-light); margin-bottom: 7px; font-weight: 400; display: block; }
+  .fg { margin-bottom: 16px; }
+  .fin {
+    width: 100%; padding: 12px 15px;
+    border: 1.5px solid var(--border); border-radius: 14px;
+    font-size: 14px; background: var(--bg); color: var(--text);
+    outline: none; transition: all 0.2s; font-family: inherit; font-weight: 400;
+    -webkit-appearance: none;
+  }
+  .fin:focus { border-color: var(--accent); background: var(--card); box-shadow: 0 0 0 3px rgba(196,170,220,0.12); }
+  .fsel {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23A8A0B8' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 14px center; padding-right: 38px; cursor: pointer;
+  }
+  .fta {
+    width: 100%; padding: 12px 15px;
+    border: 1.5px solid var(--border); border-radius: 14px;
+    font-size: 13px; font-family: 'Noto Sans SC', monospace;
+    background: var(--bg); color: var(--text); outline: none;
+    resize: vertical; min-height: 82px; line-height: 1.7; transition: all 0.2s;
+    -webkit-appearance: none; font-weight: 300;
+  }
+  .fta:focus { border-color: var(--accent); background: var(--card); box-shadow: 0 0 0 3px rgba(196,170,220,0.12); }
+
+  /* Upload */
+  .up-area { border: 2px dashed var(--border); border-radius: 18px; padding: 22px; text-align: center; cursor: pointer; transition: all 0.2s; background: var(--bg); }
+  .up-area:active { border-color: var(--accent); background: #FAF8FF; }
+  .up-preview { width: 88px; height: 117px; object-fit: cover; border-radius: 12px; display: block; margin: 0 auto; }
+  .up-hint { font-size: 12px; color: var(--text-light); margin-top: 8px; }
+  .up-hint-ic { font-size: 26px; margin-bottom: 6px; display: block; opacity: 0.4; }
+
+  /* Region */
+  .rbox { display: flex; gap: 8px; flex-wrap: wrap; }
+  .rbox-item {
+    flex: 1; min-width: 95px; display: flex; align-items: center; gap: 8px;
+    padding: 10px 14px; border-radius: 14px;
+    border: 1.5px solid var(--border); background: var(--bg);
+    cursor: pointer; font-size: 13px; font-weight: 400; color: var(--text-light);
+    transition: all 0.2s; font-family: inherit;
+  }
+  .rbox-item:active { transform: scale(0.97); }
+  .rbox-item.cn.on { background: var(--tag-cn); border-color: #C8E8C8; color: var(--tag-cn-txt); }
+  .rbox-item.sea.on { background: var(--tag-sea); border-color: #E8D8C0; color: var(--tag-sea-txt); }
+  .rbox-check { width: 16px; height: 16px; border-radius: 50%; border: 1.5px solid #D0C8E0; background: var(--card); display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.15s; }
+  .rbox-item.on .rbox-check { background: var(--accent); border-color: var(--accent); }
+  .rbox-item.on .rbox-check::after { content: ''; display: block; width: 8px; height: 5px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5' viewBox='0 0 8 5'%3E%3Cpath d='M1 3l2.5 2.5 4-4' stroke='%23fff' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: center; }
+
+  /* Field sections */
+  .fsec { margin-bottom: 16px; }
+  .fsec-hd { display: flex; align-items: center; justify-content: space-between; margin-bottom: 7px; }
+  .fsec-lbl { font-size: 12px; color: var(--text-light); font-weight: 400; }
+  .fsec-lbl.lock { font-size: 13px; color: var(--text); font-weight: 500; }
+  .add-fbtn { font-size: 11px; color: var(--accent-dark); background: transparent; border: 1.5px solid rgba(196,170,220,0.35); border-radius: 12px; padding: 4px 12px; cursor: pointer; font-family: inherit; transition: all 0.2s; font-weight: 400; }
+  .add-fbtn:active { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .cust-row { display: flex; gap: 8px; align-items: flex-start; }
+  .cust-row .fta { flex: 1; }
+  .del-fbtn { width: 38px; height: 38px; border-radius: 10px; background: #FAF0F4; color: #C090A8; border: none; cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px; transition: all 0.2s; font-family: inherit; }
+  .del-fbtn:active { transform: scale(0.9); }
+  .add-cust-box { margin-bottom: 16px; }
+  .add-cust-row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+  .add-cust-row .fin { flex: 1; }
+
+  /* Buttons */
+  .btn-row { display: flex; gap: 10px; margin-top: 20px; }
+  .btn { flex: 1; padding: 13px; border-radius: 14px; font-size: 15px; font-weight: 400; cursor: pointer; border: none; font-family: inherit; transition: all 0.2s; }
+  .btn:active { transform: scale(0.97); }
+  .btn-p { background: var(--accent); color: #fff; }
+  .btn-s { background: var(--bg); color: var(--text-light); }
+  .btn-d { background: #FAF0F4; color: #C090A8; }
+
+  /* ── Detail ── */
+  .det-img { width: 100%; max-height: 300px; object-fit: contain; border-radius: 20px; display: block; margin: 0 auto 16px; background: linear-gradient(145deg, #F5F0FA, #F0F5FA); }
+  .det-no-img { width: 100%; height: 180px; border-radius: 20px; background: linear-gradient(145deg, #F5F0FA, #F0F5FA); display: flex; align-items: center; justify-content: center; font-size: 42px; margin-bottom: 16px; opacity: 0.4; }
+  .det-name { font-size: 20px; font-weight: 600; text-align: center; margin-bottom: 10px; letter-spacing: 0.5px; }
+  .det-tags { display: flex; justify-content: center; gap: 6px; margin-bottom: 18px; flex-wrap: wrap; }
+  .det-code { margin-bottom: 14px; }
+  .det-code-hd { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .det-code-lbl { font-size: 13px; font-weight: 500; color: var(--text); }
+  .cpbtn { background: var(--bg); color: var(--text); border: 1.5px solid var(--border); border-radius: 10px; padding: 7px 16px; font-size: 12px; font-weight: 400; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; font-family: inherit; transition: all 0.2s; }
+  .cpbtn:active { transform: scale(0.95); }
+  .cpbtn.copied { background: var(--tag-cn); border-color: #C8E8C8; color: var(--tag-cn-txt); }
+  .code-box { background: var(--bg); border: 1.5px solid var(--border); border-radius: 14px; padding: 14px; }
+  .code-txt { color: #7060880; font-family: 'Noto Sans SC', monospace; font-size: 12px; line-height: 1.8; word-break: break-all; white-space: pre-wrap; max-height: 150px; overflow-y: auto; user-select: all; -webkit-user-select: all; font-weight: 300; }
+  .code-txt::-webkit-scrollbar { width: 3px; }
+  .code-txt::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  .det-actions { display: flex; gap: 10px; margin-top: 18px; }
+
+  /* ── Import ── */
+  .import-box { padding: 4px 0; }
+  .import-up { border: 2px dashed var(--border); border-radius: 20px; padding: 32px 20px; text-align: center; cursor: pointer; background: var(--bg); transition: all 0.2s; }
+  .import-up:active { border-color: var(--accent); background: #FAF8FF; }
+  .import-up-ic { font-size: 36px; margin-bottom: 10px; display: block; opacity: 0.5; }
+  .import-up-t1 { font-size: 15px; font-weight: 500; color: var(--text); margin-bottom: 5px; }
+  .import-up-t2 { font-size: 12px; color: var(--text-light); }
+  .import-preview-box { background: var(--tag-cn); border: 1.5px solid #C8E8C8; border-radius: 14px; padding: 14px; margin-bottom: 14px; font-size: 13px; color: var(--tag-cn-txt); text-align: center; font-weight: 400; }
+  .import-btns { display: flex; flex-direction: column; gap: 8px; }
+
+  /* ── Toast ── */
+  .toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%) translateY(-80px); background: rgba(90,84,104,0.88); backdrop-filter: blur(10px); color: #fff; padding: 11px 24px; border-radius: 24px; font-size: 14px; z-index: 999; transition: transform 0.4s cubic-bezier(0.25,0.86,0.45,1); pointer-events: none; white-space: nowrap; font-weight: 400; }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+
+  /* ── Crop ── */
+  .crop-ov { display: none; position: fixed; inset: 0; z-index: 500; background: #1E1B24; flex-direction: column; }
+  .crop-ov.open { display: flex; }
+  .crop-head { display: flex; justify-content: space-between; align-items: center; padding: 14px 18px; flex-shrink: 0; background: rgba(30,27,36,0.95); }
+  .crop-hbtn { background: transparent; border: none; color: rgba(255,255,255,0.45); font-size: 15px; font-weight: 400; cursor: pointer; padding: 6px 0; font-family: inherit; }
+  .crop-hbtn.done { color: #E0B8D8; font-size: 16px; }
+  .crop-ttl { font-size: 13px; color: rgba(255,255,255,0.35); }
+  .crop-stage { flex: 1; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+  .crop-frame { position: absolute; overflow: hidden; border: 2px solid rgba(255,255,255,0.85); box-shadow: 0 0 0 9999px rgba(0,0,0,0.65); border-radius: 2px; z-index: 4; }
+  .crop-img { position: absolute; transform-origin: 0 0; cursor: grab; max-width: none; }
+  .crop-img:active { cursor: grabbing; }
+  .crop-foot { padding: 12px 20px 20px; background: rgba(30,27,36,0.95); flex-shrink: 0; text-align: center; }
+  .crop-foot-hint { color: rgba(255,255,255,0.3); font-size: 12px; }
+  .crop-foot-hint b { color: rgba(255,255,255,0.6); font-weight: 400; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-title">脸码收纳册</div>
+  <button class="header-btn" onclick="toggleFabMenu()">&#9776;</button>
+</div>
+
+<div class="stats">
+  <div class="stat"><div class="dot p"></div>全部 <span class="n" id="totalCount">0</span></div>
+  <div class="stat"><div class="dot p"></div>少女 <span class="n" id="girlCount">0</span></div>
+  <div class="stat"><div class="dot b"></div>成女 <span class="n" id="adultCount">0</span></div>
+  <div class="stat"><div class="dot g"></div>国服 <span class="n" id="cnCount">0</span></div>
+  <div class="stat"><div class="dot o"></div>新马 <span class="n" id="seaCount">0</span></div>
+</div>
+
+<div class="filters">
+  <div class="filter-row">
+    <span class="filter-lbl">体型</span>
+    <button class="fbtn on" data-type="gender" data-val="all">全部</button>
+    <button class="fbtn" data-type="gender" data-val="girl">少女体</button>
+    <button class="fbtn" data-type="gender" data-val="adult">成女体</button>
+  </div>
+  <div class="filter-row">
+    <span class="filter-lbl">区服</span>
+    <button class="fbtn on" data-type="region" data-val="all">全部</button>
+    <button class="fbtn" data-type="region" data-val="cn">国服</button>
+    <button class="fbtn" data-type="region" data-val="sea">新马服</button>
+  </div>
+</div>
+
+<div class="search">
+  <div class="search-box">
+    <span class="search-i">&#9744;</span>
+    <input id="searchInput" placeholder="搜索脸码名称…" oninput="render()">
+  </div>
+</div>
+
+<div class="grid" id="grid"></div>
+
+<button class="fab" onclick="openAddModal()">+</button>
+
+<div class="fab-backdrop" id="fabBackdrop" onclick="hideFabMenu()"></div>
+<div class="fab-menu" id="fabMenu">
+  <button class="fab-menu-item" onclick="exportData()"><span>&#8657;</span> 导出数据</button>
+  <button class="fab-menu-item" onclick="openImportModal()"><span>&#8659;</span> 导入数据</button>
+</div>
+
+<!-- Add Modal -->
+<div class="modal-ov" id="addModal">
+  <div class="modal">
+    <div class="mh"></div>
+    <div class="mtitle" id="modalTitle">添加脸码</div>
+
+    <div class="fg">
+      <label class="fl">立绘图片</label>
+      <div class="up-area" id="uploadArea">
+        <input type="file" id="imgInput" accept="image/gif,image/jpeg,image/png,image/webp" style="display:none" onchange="startCrop(this.files[0])">
+        <img id="uploadPreview" style="display:none">
+        <div id="uploadHint">
+          <div class="up-hint-ic">&#9634;</div>
+          <div class="up-hint">点击上传立绘</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="fg">
+      <label class="fl">名称</label>
+      <input class="fin" id="faceName" placeholder="输入脸码名称" maxlength="50">
+    </div>
+
+    <div class="fg">
+      <label class="fl">体型</label>
+      <select class="fin fsel" id="faceGender">
+        <option value="girl">少女体</option>
+        <option value="adult">成女体</option>
+      </select>
+    </div>
+
+    <div class="fg">
+      <label class="fl">区服（可多选）</label>
+      <div class="rbox">
+        <div class="rbox-item cn on" id="checkCn" onclick="toggleRbox(this)">
+          <div class="rbox-check"></div><span>国服</span>
+        </div>
+        <div class="rbox-item sea" id="checkSea" onclick="toggleRbox(this)">
+          <div class="rbox-check"></div><span>新马服</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="fsec">
+      <div class="fsec-hd"><span class="fsec-lbl lock">国服无妆</span></div>
+      <textarea class="fta" id="f_cnBare" placeholder="粘贴国服无妆脸码…"></textarea>
+    </div>
+    <div class="fsec">
+      <div class="fsec-hd"><span class="fsec-lbl lock">国服带妆</span></div>
+      <textarea class="fta" id="f_cnMakeup" placeholder="粘贴国服带妆脸码…"></textarea>
+    </div>
+    <div class="fsec">
+      <div class="fsec-hd"><span class="fsec-lbl lock">新马服</span></div>
+      <textarea class="fta" id="f_sea" placeholder="粘贴新马服脸码…"></textarea>
+    </div>
+
+    <div id="customFieldsContainer"></div>
+
+    <button class="add-fbtn" onclick="showAddCustomField()" style="width:100%;text-align:center;margin-bottom:16px;display:block">
+      + 添加自定义项
+    </button>
+
+    <div class="add-cust-box" id="addCustomBox" style="display:none">
+      <div class="add-cust-row">
+        <input class="fin" id="newCustomName" placeholder="输入自定义项名称，如：台服" maxlength="20">
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-p" onclick="confirmAddCustom()" style="flex:1">确认添加</button>
+        <button class="btn btn-s" onclick="hideAddCustomField()" style="flex:1">取消</button>
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-s" onclick="closeAddModal()">取消</button>
+      <button class="btn btn-p" onclick="saveFace()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- Crop -->
+<div class="crop-ov" id="cropOverlay">
+  <div class="crop-head">
+    <button class="crop-hbtn" onclick="cancelCrop()">取消</button>
+    <span class="crop-ttl">6 : 9</span>
+    <button class="crop-hbtn done" onclick="confirmCrop()">完成</button>
+  </div>
+  <div class="crop-stage" id="cropStage">
+    <div class="crop-frame" id="cropFrame">
+      <img class="crop-img" id="cropImg" draggable="false">
+    </div>
+  </div>
+  <div class="crop-foot">
+    <div class="crop-foot-hint"><b>单指拖动</b> 移动图片 &nbsp;&middot;&nbsp; <b>双指缩放</b> 调整大小</div>
+  </div>
+</div>
+
+<!-- Detail -->
+<div class="modal-ov" id="detailModal">
+  <div class="modal">
+    <div class="mh"></div>
+    <div id="detailImgWrap"></div>
+    <div class="det-name" id="detailName"></div>
+    <div class="det-tags" id="detailTags"></div>
+    <div id="detailCodesContainer"></div>
+    <div class="det-actions">
+      <button class="btn btn-s" onclick="closeDetailModal()">关闭</button>
+      <button class="btn btn-d" onclick="deleteFace()">&#10005; 删除</button>
+    </div>
+  </div>
+</div>
+
+<!-- Import -->
+<div class="modal-ov" id="importModal">
+  <div class="modal">
+    <div class="mh"></div>
+    <div class="mtitle">导入数据</div>
+    <div id="importUpload" class="import-box">
+      <div class="import-up" onclick="document.getElementById('importFileInput').click()">
+        <input type="file" id="importFileInput" accept=".json" style="display:none" onchange="handleImportFile(this.files[0])">
+        <div class="import-up-ic">&#8659;</div>
+        <div class="import-up-t1">点击选择 .json 备份文件</div>
+        <div class="import-up-t2">导出时的备份文件</div>
+      </div>
+    </div>
+    <div id="importPreviewBox" style="display:none" class="import-box">
+      <div class="import-preview-box">检测到 <b id="importCount">0</b> 条脸码</div>
+      <div class="import-btns">
+        <button class="btn btn-p" onclick="doImport('merge')">+ 合并导入</button>
+        <p style="font-size:11px;color:var(--text-lighter);text-align:center;margin:0">保留现有数据，追加新脸码</p>
+        <button class="btn btn-s" onclick="doImport('replace')">&#8635; 覆盖导入</button>
+        <p style="font-size:11px;color:var(--text-lighter);text-align:center;margin:0">用导入数据完全替换</p>
+        <button class="btn btn-s" onclick="cancelImport()" style="background:#F5F3F8">取消</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const STORE_KEY = 'face_codes_v9';
+const FIXED = [{key:'cnBare',label:'国服无妆'},{key:'cnMakeup',label:'国服带妆'},{key:'sea',label:'新马服'}];
+const ASPECT = 6/9, OUT_W = 600;
+let faces = [], filter = {gender:'all',region:'all'};
+let editingId = null, currentDetailId = null;
+let currentCodes = {}, currentCustomFields = [], pendingCustomFields = [];
+let C = {}, pendingImportData = null;
+
+function init() {
+  try { faces = JSON.parse(localStorage.getItem(STORE_KEY)) || []; } catch { faces = []; }
+  bindFilters(); render();
+}
+function save() { localStorage.setItem(STORE_KEY, JSON.stringify(faces)); }
+
+function bindFilters() {
+  document.querySelectorAll('.fbtn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const t = btn.dataset.type;
+      document.querySelectorAll(`.fbtn[data-type="${t}"]`).forEach(b => b.classList.remove('on'));
+      btn.classList.add('on');
+      filter[t] = btn.dataset.val;
+      render();
+    });
+  });
+}
+
+function getFiltered() {
+  const kw = document.getElementById('searchInput').value.trim().toLowerCase();
+  return faces.filter(f => {
+    let rOk = filter.region === 'all'
+      || (filter.region === 'cn' && (f.region === 'cn' || f.region === 'both'))
+      || (filter.region === 'sea' && (f.region === 'sea' || f.region === 'both'));
+    return (filter.gender === 'all' || f.gender === filter.gender) && rOk
+      && (!kw || f.name.toLowerCase().includes(kw));
+  });
+}
+
+function render() {
+  const F = getFiltered();
+  const g = document.getElementById('grid');
+  document.getElementById('totalCount').textContent = faces.length;
+  document.getElementById('girlCount').textContent = faces.filter(f=>f.gender==='girl').length;
+  document.getElementById('adultCount').textContent = faces.filter(f=>f.gender==='adult').length;
+  document.getElementById('cnCount').textContent = faces.filter(f=>f.region==='cn'||f.region==='both').length;
+  document.getElementById('seaCount').textContent = faces.filter(f=>f.region==='sea'||f.region==='both').length;
+  if (F.length === 0) {
+    g.innerHTML = `<div class="empty"><div class="empty-ic">&#9632;</div><p style="font-size:13px">${faces.length===0?'还没有脸码<br>点 + 添加第一张吧':'没有符合条件的脸码'}</p></div>`;
+    return;
+  }
+  g.innerHTML = F.map(f => {
+    const tags = [`<span class="ctag ${f.gender==='girl'?'g':'a'}">${f.gender==='girl'?'少女':'成女'}</span>`];
+    const rL = f.region==='cn'?'国服':f.region==='sea'?'新马':'国&新马';
+    const rC = f.region==='cn'?'c':f.region==='sea'?'s':'b';
+    tags.push(`<span class="ctag ${rC}">${rL}</span>`);
+    const has = (f.codes&&Object.values(f.codes).some(v=>v&&v.trim()))||(f.customFields&&f.customFields.some(c=>c.value&&c.value.trim()));
+    return `<div class="card" onclick="openDetail('${f.id}')">
+      <div class="ci-wrap">
+        ${f.img?`<img class="ci" src="${f.img}" loading="lazy">`:`<div class="ci-ph">&#9670;</div>`}
+        ${has?'<div class="ci-dot"></div>':''}
+        <div class="ci-badge ctag ${rC}">${rL}</div>
+      </div>
+      <div class="cb"><div class="cn">${esc(f.name)}</div><div class="ctags">${tags.join('')}</div></div>
+    </div>`;
+  }).join('');
+}
+
+function showAddCustomField() {
+  document.getElementById('addCustomBox').style.display='';
+  document.getElementById('newCustomName').value='';
+  document.getElementById('newCustomName').focus();
+}
+function hideAddCustomField() {
+  document.getElementById('addCustomBox').style.display='none';
+  document.getElementById('newCustomName').value='';
+}
+function confirmAddCustom() {
+  const n=document.getElementById('newCustomName').value.trim();
+  if(!n){toast('请输入名称');return;}
+  if(pendingCustomFields.some(f=>f.label===n)){toast('该名称已存在');return;}
+  pendingCustomFields.push({id:'c_'+Date.now(),label:n,value:''});
+  hideAddCustomField(); renderCustomFields();
+}
+function removeCustomField(id){pendingCustomFields=pendingCustomFields.filter(f=>f.id!==id);renderCustomFields();}
+function renderCustomFields() {
+  const c=document.getElementById('customFieldsContainer');
+  if(!pendingCustomFields.length){c.innerHTML='';return;}
+  c.innerHTML=pendingCustomFields.map(f=>`
+    <div class="fsec">
+      <div class="fsec-hd"><span class="fsec-lbl">${esc(f.label)}</span><button class="del-fbtn" onclick="removeCustomField('${f.id}')">&#215;</button></div>
+      <textarea class="fta" id="fc_${f.id}" placeholder="粘贴${esc(f.label)}脸码…">${esc(f.value||'')}</textarea>
+    </div>`).join('');
+}
+
+// Upload & Crop
+document.getElementById('uploadArea').addEventListener('click',e=>{if(e.target.tagName!=='INPUT')document.getElementById('imgInput').click();});
+function startCrop(file){
+  if(!file)return;
+  const r=new FileReader();
+  r.onload=e=>{const img=new Image();img.onload=()=>openCropUI(img);img.src=e.target.result;};
+  r.readAsDataURL(file);
+}
+function openCropUI(img){
+  C.img=img;C.natW=img.naturalWidth;C.natH=img.naturalHeight;
+  const stage=document.getElementById('cropStage');
+  const sw=stage.clientWidth||window.innerWidth;
+  const sh=stage.clientHeight||(window.innerHeight*0.65);
+  const fw=sw,fh=fw/ASPECT;
+  const fe=document.getElementById('cropFrame');
+  fe.style.width=fw+'px';fe.style.height=fh+'px';
+  C.fw=fw;C.fh=fh;
+  const ia=C.natW/C.natH,fa=fw/fh;
+  let dw,dh;if(ia>fa){dh=fh;dw=dh*ia;}else{dw=fw;dh=dw/ia;}
+  C.dw=dw;C.dh=dh;C.scale=dw/C.natW;
+  C.x=(fw-dw)/2;C.y=(fh-dh)/2;
+  C.minScale=Math.max(fw/C.natW,fh/C.natH);
+  const ci=document.getElementById('cropImg');
+  ci.style.width=C.natW+'px';ci.style.height=C.natH+'px';ci.src=img.src;
+  applyTransform();bindGestures();
+  document.getElementById('cropOverlay').classList.add('open');
+}
+function applyTransform(){document.getElementById('cropImg').style.transform=`translate(${C.x}px,${C.y}px) scale(${C.scale})`;}
+
+let drag=null,lastDist=0,lastMidX=0,lastMidY=0,lastPinchScale=1;
+function bindGestures(){
+  const s=document.getElementById('cropStage');
+  s.addEventListener('mousedown',e=>{drag={x:e.clientX,y:e.clientY,ix:C.x,iy:C.y};e.preventDefault();},{passive:false});
+  window.addEventListener('mousemove',e=>{if(!drag)return;C.x=drag.ix+(e.clientX-drag.x);C.y=drag.iy+(e.clientY-drag.y);constrain();applyTransform();e.preventDefault();},{passive:false});
+  window.addEventListener('mouseup',()=>drag=null);
+  s.addEventListener('touchstart',e=>{
+    if(e.touches.length===1)drag={x:e.touches[0].clientX,y:e.touches[0].clientY,ix:C.x,iy:C.y};
+    else if(e.touches.length===2){drag=null;lastDist=getDist(e.touches);lastMidX=getMidX(e.touches);lastMidY=getMidY(e.touches);lastPinchScale=C.scale;}
+    e.preventDefault();
+  },{passive:false});
+  s.addEventListener('touchmove',e=>{
+    if(e.touches.length===1&&drag){C.x=drag.ix+(e.touches[0].clientX-drag.x);C.y=drag.iy+(e.touches[0].clientY-drag.y);constrain();applyTransform();}
+    else if(e.touches.length===2){
+      const d=getDist(e.touches),mx=getMidX(e.touches),my=getMidY(e.touches);
+      const ns=Math.max(C.minScale,lastPinchScale*(d/lastDist));const sf=ns/C.scale;
+      C.x=mx-(mx-C.x)*sf;C.y=my-(my-C.y)*sf;C.scale=ns;constrain();applyTransform();
+      lastDist=d;lastMidX=mx;lastMidY=my;lastPinchScale=ns;
+    }
+    e.preventDefault();
+  },{passive:false});
+  s.addEventListener('touchend',()=>{drag=null;lastDist=0;},{passive:false});
+}
+function constrain(){const cw=C.natW*C.scale,ch=C.natH*C.scale;C.x=Math.max(C.fw-cw,Math.min(0,C.x));C.y=Math.max(C.fh-ch,Math.min(0,C.y));}
+function getDist(t){return Math.sqrt((t[0].clientX-t[1].clientX)**2+(t[0].clientY-t[1].clientY)**2);}
+function getMidX(t){return(t[0].clientX+t[1].clientX)/2;}
+function getMidY(t){return(t[0].clientY+t[1].clientY)/2;}
+function cancelCrop(){document.getElementById('cropOverlay').classList.remove('open');drag=null;document.getElementById('imgInput').value='';}
+function confirmCrop(){
+  const sx=-C.x/C.scale,sy=-C.y/C.scale,sw=C.fw/C.scale,sh=C.fh/C.scale;
+  const cv=document.createElement('canvas');cv.width=OUT_W;cv.height=OUT_W/ASPECT;
+  cv.getContext('2d').drawImage(C.img,sx,sy,sw,sh,0,0,cv.width,cv.height);
+  const pr=document.getElementById('uploadPreview');
+  pr.src=cv.toDataURL('image/jpeg',0.88);pr.style.display='block';pr.className='up-preview';
+  document.getElementById('uploadHint').style.display='none';
+  document.getElementById('cropOverlay').classList.remove('open');drag=null;document.getElementById('imgInput').value='';
+}
+
+// Add Modal
+function openAddModal(edit=null){
+  editingId=edit?edit.id:null;
+  document.getElementById('modalTitle').textContent=edit?'编辑脸码':'添加脸码';
+  document.getElementById('uploadPreview').style.display='none';
+  document.getElementById('uploadHint').style.display='';
+  document.getElementById('imgInput').value='';
+  document.getElementById('faceName').value=edit?edit.name:'';
+  document.getElementById('faceGender').value=edit?edit.gender:'girl';
+  document.getElementById('f_cnBare').value=edit&&edit.codes?(edit.codes.cnBare||''):'';
+  document.getElementById('f_cnMakeup').value=edit&&edit.codes?(edit.codes.cnMakeup||''):'';
+  document.getElementById('f_sea').value=edit&&edit.codes?(edit.codes.sea||''):'';
+  document.getElementById('checkCn').classList.toggle('on',edit?(edit.region==='cn'||edit.region==='both'):true);
+  document.getElementById('checkSea').classList.toggle('on',edit?(edit.region==='sea'||edit.region==='both'):false);
+  pendingCustomFields=edit&&edit.customFields?edit.customFields.map(f=>({...f})):[];
+  renderCustomFields();
+  if(edit&&edit.img){const pr=document.getElementById('uploadPreview');pr.src=edit.img;pr.style.display='block';pr.className='up-preview';document.getElementById('uploadHint').style.display='none';}
+  document.getElementById('addCustomBox').style.display='none';
+  document.getElementById('addModal').classList.add('open');
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+function closeAddModal(){document.getElementById('addModal').classList.remove('open');editingId=null;pendingCustomFields=[];}
+function toggleRbox(el){el.classList.toggle('on');}
+function getRegionFromChecks(){
+  const cn=document.getElementById('checkCn').classList.contains('on');
+  const sea=document.getElementById('checkSea').classList.contains('on');
+  if(cn&&sea)return'both';if(cn)return'cn';if(sea)return'sea';return'cn';
+}
+function saveFace(){
+  const name=document.getElementById('faceName').value.trim();
+  const gender=document.getElementById('faceGender').value;
+  const region=getRegionFromChecks();
+  const img=document.getElementById('uploadPreview').src||'';
+  if(!name){toast('请输入脸码名称');return;}
+  const codes={cnBare:(document.getElementById('f_cnBare')||{value:''}).value.trim(),cnMakeup:(document.getElementById('f_cnMakeup')||{value:''}).value.trim(),sea:(document.getElementById('f_sea')||{value:''}).value.trim()};
+  const customFields=pendingCustomFields.map(f=>({id:f.id,label:f.label,value:(document.getElementById('fc_'+f.id)||{value:''}).value.trim()}));
+  const data={id:editingId||Date.now().toString(),name,gender,region,codes,customFields,img};
+  if(editingId){const i=faces.findIndex(x=>x.id===editingId);if(i!==-1)faces[i]=data;}
+  else faces.unshift(data);
+  save();render();closeAddModal();
+  toast(editingId?'已更新':'已保存');
+}
+
+// Detail
+function openDetail(id){
+  const f=faces.find(x=>x.id===id);if(!f)return;
+  currentDetailId=id;currentCodes=f.codes||{};currentCustomFields=f.customFields||[];
+  document.getElementById('detailImgWrap').innerHTML=f.img?`<img class="det-img" src="${f.img}">`:`<div class="det-no-img">&#9670;</div>`;
+  document.getElementById('detailName').textContent=f.name;
+  const gL=f.gender==='girl'?'少女体':'成女体';
+  const rL=f.region==='cn'?'国服':f.region==='sea'?'新马服':'国服&新马服';
+  document.getElementById('detailTags').innerHTML=
+    `<span class="ctag ${f.gender==='girl'?'g':'a'}">${gL}</span><span class="ctag ${f.region==='cn'?'c':f.region==='sea'?'s':'b'}">${rL}</span>`;
+  const allFields=[...FIXED.map(x=>({key:x.key,label:x.label,isFixed:true})),...currentCustomFields.map(x=>({key:'cust_'+x.id,label:x.label,isFixed:false}))];
+  document.getElementById('detailCodesContainer').innerHTML=allFields.map(field=>{
+    const code=field.isFixed?(currentCodes[field.key]||''):((currentCustomFields.find(c=>'cust_'+c.id===field.key)||{value:''}).value||'');
+    if(!code)return'';
+    const bid='cpbtn_'+field.key;
+    return`<div class="det-code"><div class="det-code-hd"><span class="det-code-lbl">${esc(field.label)}</span><button class="cpbtn" id="${bid}" onclick="copyCode('${field.key}','${field.isFixed?0:1}')">&#10002; 复制</button></div><div class="code-box"><div class="code-txt">${esc(code)}</div></div></div>`;
+  }).join('');
+  document.getElementById('detailModal').classList.add('open');
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+function copyCode(key,isFixed){
+  const code=isFixed==='1'?(currentCustomFields.find(c=>'cust_'+c.id===key)||{value:''}).value||'':(currentCodes[key]||'');
+  if(!code)return;
+  const btn=document.getElementById('cpbtn_'+key);
+  const done=()=>{btn.classList.add('copied');btn.textContent='&#10003; 已复制';toast('已复制到剪贴板');setTimeout(()=>{btn.classList.remove('copied');btn.textContent='&#10002; 复制';},2000);};
+  navigator.clipboard.writeText(code).then(done).catch(()=>{const ta=document.createElement('textarea');ta.value=code;ta.style.cssText='position:fixed;opacity:0';document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);done();});
+}
+function closeDetailModal(){document.getElementById('detailModal').classList.remove('open');currentDetailId=null;}
+function deleteFace(){if(!confirm('确定要删除这个脸码吗？'))return;faces=faces.filter(f=>f.id!==currentDetailId);save();render();closeDetailModal();toast('已删除');}
+
+// FAB Menu
+function toggleFabMenu(){const m=document.getElementById('fabMenu'),b=document.getElementById('fabBackdrop');const is=m.classList.contains('show');if(is){m.classList.remove('show');b.classList.remove('show');}else{m.classList.add('show');b.classList.add('show');}}
+function hideFabMenu(){document.getElementById('fabMenu').classList.remove('show');document.getElementById('fabBackdrop').classList.remove('show');}
+
+// Export / Import
+function exportData(){
+  hideFabMenu();
+  if(!faces.length){toast('暂无数据可导出');return;}
+  const blob=new Blob([JSON.stringify(faces,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);const a=document.createElement('a');
+  const d=new Date(),ds=`${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;
+  a.href=url;a.download=`脸码备份_${ds}.json`;document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
+  toast(`已导出 ${faces.length} 条脸码`);
+}
+function openImportModal(){hideFabMenu();pendingImportData=null;document.getElementById('importUpload').style.display='';document.getElementById('importPreviewBox').style.display='none';document.getElementById('importFileInput').value='';document.getElementById('importModal').classList.add('open');}
+function closeImportModal(){document.getElementById('importModal').classList.remove('open');pendingImportData=null;}
+function handleImportFile(file){
+  if(!file)return;
+  const r=new FileReader();
+  r.onload=e=>{try{const data=JSON.parse(e.target.result);if(!Array.isArray(data))throw new Error();pendingImportData=data;document.getElementById('importCount').textContent=data.length;document.getElementById('importUpload').style.display='none';document.getElementById('importPreviewBox').style.display='';}catch{toast('文件格式错误');document.getElementById('importFileInput').value='';}};
+  r.readAsText(file);
+}
+function doImport(mode){
+  if(!pendingImportData)return;
+  if(mode==='replace'){faces=pendingImportData;save();render();closeImportModal();toast(`已导入 ${faces.length} 条`);}
+  else{const ids=new Set(faces.map(f=>f.id));let added=0;pendingImportData.forEach(f=>{if(!ids.has(f.id)){faces.push(f);added++;}});save();render();closeImportModal();toast(`合并完成，新增 ${added} 条`);}
+}
+function cancelImport(){closeImportModal();}
+
+function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2200);}
+function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+document.querySelectorAll('.modal-ov').forEach(ov=>{ov.addEventListener('click',e=>{if(e.target===ov)ov.classList.remove('open');});});
+
+// PWA Service Worker
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
+
+init();
+</script>
+</body>
+</html>

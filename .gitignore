@@ -1,0 +1,6 @@
+*.md
+.clawhub/
+.openclaw/
+schulte.py
+skills/
+memory/
