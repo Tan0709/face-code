@@ -463,6 +463,7 @@
     <div class="det-tags" id="detailTags"></div>
     <div id="detailCodesContainer"></div>
     <div class="det-actions">
+      <button class="btn btn-s" onclick="openEditFromDetail()">&#9998; 编辑</button>
       <button class="btn btn-s" onclick="closeDetailModal()">关闭</button>
       <button class="btn btn-d" onclick="deleteFace()">&#10005; 删除</button>
     </div>
@@ -729,6 +730,13 @@ function copyCode(key,isFixed){
   navigator.clipboard.writeText(code).then(done).catch(()=>{const ta=document.createElement('textarea');ta.value=code;ta.style.cssText='position:fixed;opacity:0';document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);done();});
 }
 function closeDetailModal(){document.getElementById('detailModal').classList.remove('open');currentDetailId=null;}
+function openEditFromDetail(){
+  if(!currentDetailId)return;
+  const f=faces.find(x=>x.id===currentDetailId);
+  if(!f)return;
+  closeDetailModal();
+  openAddModal(f);
+}
 function deleteFace(){if(!confirm('确定要删除这个脸码吗？'))return;faces=faces.filter(f=>f.id!==currentDetailId);save();render();closeDetailModal();toast('已删除');}
 
 // FAB Menu
