@@ -1,4 +1,4 @@
-const CACHE_NAME = 'face-code-v1';
+const CACHE_NAME = 'face-code-v3';
 const ASSETS = ['./face-code-manager.html', './manifest.json'];
 
 self.addEventListener('install', e => {

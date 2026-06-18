@@ -499,19 +499,60 @@
 <div class="toast" id="toast"></div>
 
 <script>
-const STORE_KEY = 'face_codes_v9';
+const DB_NAME = 'FaceCodeDB_v1';
+const STORE_KEY = 'faces';
 const FIXED = [{key:'cnBare',label:'国服无妆'},{key:'cnMakeup',label:'国服带妆'},{key:'sea',label:'新马服'}];
-const ASPECT = 6/9, OUT_W = 600;
+const ASPECT = 6/9, OUT_W = 400;
 let faces = [], filter = {gender:'all',region:'all'};
 let editingId = null, currentDetailId = null;
 let currentCodes = {}, currentCustomFields = [], pendingCustomFields = [];
 let C = {}, pendingImportData = null;
+let db = null;
 
-function init() {
-  try { faces = JSON.parse(localStorage.getItem(STORE_KEY)) || []; } catch { faces = []; }
+// IndexedDB 初始化
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, 1);
+    req.onerror = () => reject(req.error);
+    req.onsuccess = () => { db = req.result; resolve(db); };
+    req.onupgradeneeded = (e) => {
+      const database = e.target.result;
+      if (!database.objectStoreNames.contains(STORE_KEY)) {
+        database.createObjectStore(STORE_KEY);
+      }
+    };
+  });
+}
+function dbGet(key) {
+  return new Promise((resolve, reject) => {
+    if (!db) { resolve(null); return; }
+    const tx = db.transaction(STORE_KEY, 'readonly');
+    const req = tx.objectStore(STORE_KEY).get(key);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+function dbPut(key, value) {
+  return new Promise((resolve, reject) => {
+    if (!db) { reject(new Error('DB not ready')); return; }
+    const tx = db.transaction(STORE_KEY, 'readwrite');
+    const req = tx.objectStore(STORE_KEY).put(value, key);
+    req.onsuccess = () => resolve();
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function init() {
+  try {
+    await openDB();
+    const stored = await dbGet('faceList');
+    faces = stored || [];
+  } catch (e) {
+    console.warn('IndexedDB failed, falling back to localStorage:', e);
+    try { faces = JSON.parse(localStorage.getItem('face_codes_v9')) || []; } catch { faces = []; }
+  }
   bindFilters(); render();
 }
-function save() { localStorage.setItem(STORE_KEY, JSON.stringify(faces)); }
 
 function bindFilters() {
   document.querySelectorAll('.fbtn').forEach(btn => {
@@ -654,7 +695,7 @@ function confirmCrop(){
   const cv=document.createElement('canvas');cv.width=OUT_W;cv.height=OUT_W/ASPECT;
   cv.getContext('2d').drawImage(C.img,sx,sy,sw,sh,0,0,cv.width,cv.height);
   const pr=document.getElementById('uploadPreview');
-  pr.src=cv.toDataURL('image/jpeg',0.88);pr.style.display='block';pr.className='up-preview';
+  pr.src=cv.toDataURL('image/jpeg',0.65);pr.style.display='block';pr.className='up-preview';
   document.getElementById('uploadHint').style.display='none';
   document.getElementById('cropOverlay').classList.remove('open');drag=null;document.getElementById('imgInput').value='';
 }
@@ -698,8 +739,13 @@ function saveFace(){
   const data={id:editingId||Date.now().toString(),name,gender,region,codes,customFields,img};
   if(editingId){const i=faces.findIndex(x=>x.id===editingId);if(i!==-1)faces[i]=data;}
   else faces.unshift(data);
-  save();render();closeAddModal();
-  toast(editingId?'已更新':'已保存');
+  render();
+  dbPut('faceList', faces).then(() => {
+    closeAddModal();
+    toast(editingId?'已更新':'已保存');
+  }).catch(e => {
+    toast('保存失败');
+  });
 }
 
 // Detail
@@ -737,7 +783,7 @@ function openEditFromDetail(){
   closeDetailModal();
   openAddModal(f);
 }
-function deleteFace(){if(!confirm('确定要删除这个脸码吗？'))return;faces=faces.filter(f=>f.id!==currentDetailId);save();render();closeDetailModal();toast('已删除');}
+function deleteFace(){if(!confirm('确定要删除这个脸码吗？'))return;faces=faces.filter(f=>f.id!==currentDetailId);render();closeDetailModal();dbPut('faceList', faces).then(()=>toast('已删除')).catch(()=>toast('删除失败'));}
 
 // FAB Menu
 function toggleFabMenu(){const m=document.getElementById('fabMenu'),b=document.getElementById('fabBackdrop');const is=m.classList.contains('show');if(is){m.classList.remove('show');b.classList.remove('show');}else{m.classList.add('show');b.classList.add('show');}}
@@ -763,8 +809,12 @@ function handleImportFile(file){
 }
 function doImport(mode){
   if(!pendingImportData)return;
-  if(mode==='replace'){faces=pendingImportData;save();render();closeImportModal();toast(`已导入 ${faces.length} 条`);}
-  else{const ids=new Set(faces.map(f=>f.id));let added=0;pendingImportData.forEach(f=>{if(!ids.has(f.id)){faces.push(f);added++;}});save();render();closeImportModal();toast(`合并完成，新增 ${added} 条`);}
+  if(mode==='replace'){faces=pendingImportData;}
+  else{const ids=new Set(faces.map(f=>f.id));let added=0;pendingImportData.forEach(f=>{if(!ids.has(f.id)){faces.push(f);added++;}});}
+  render();closeImportModal();
+  dbPut('faceList', faces).then(()=>{
+    toast(mode==='replace'?`已导入 ${faces.length} 条`:`合并完成，新增 ${added} 条`);
+  }).catch(()=>toast('导入保存失败'));
 }
 function cancelImport(){closeImportModal();}
 
@@ -780,5 +830,6 @@ if ('serviceWorker' in navigator) {
 
 init();
 </script>
+<div style="text-align:center;font-size:8px;color:#e0dce8;padding:8px 0 4px;line-height:1;">v2.0</div>
 </body>
 </html>
