@@ -310,6 +310,36 @@
   .crop-foot-hint { color: rgba(255,255,255,0.3); font-size: 12px; }
   .crop-foot-hint b { color: rgba(255,255,255,0.6); font-weight: 400; }
 
+  /* ── Loading Overlay ── */
+  .loading-ov {
+    display: none;
+    position: fixed; inset: 0; z-index: 600;
+    background: rgba(248,247,245,0.92);
+    backdrop-filter: blur(6px);
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+  }
+  .loading-ov.open { display: flex; }
+  .loading-spinner {
+    width: 40px; height: 40px;
+    border: 3px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-msg { font-size: 14px; color: var(--text-light); font-weight: 400; }
+  .loading-title { font-size: 15px; font-weight: 600; color: var(--text); }
+
+  /* ── Import Progress ── */
+  .import-progress-box { display: none; padding: 8px 0 4px; }
+  .import-progress-box.show { display: block; }
+  .import-progress-info { display: flex; justify-content: space-between; font-size: 12px; color: var(--text-light); margin-bottom: 8px; }
+  .import-progress-bar { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+  .import-progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-dark)); border-radius: 3px; transition: width 0.2s ease; min-width: 2px; }
+
   /* ── Batch Mode ── */
   .batch-bar {
     display: none;
@@ -594,7 +624,16 @@
     </div>
     <div id="importPreviewBox" style="display:none" class="import-box">
       <div class="import-preview-box">检测到 <b id="importCount">0</b> 条脸码</div>
-      <div class="import-btns">
+      <div class="import-progress-box" id="importProgressBox">
+        <div class="import-progress-info">
+          <span id="importProgressLabel">正在导入…</span>
+          <span id="importProgressPct">0%</span>
+        </div>
+        <div class="import-progress-bar">
+          <div class="import-progress-fill" id="importProgressFill" style="width:0%"></div>
+        </div>
+      </div>
+      <div class="import-btns" id="importBtns">
         <button class="btn btn-p" onclick="doImport('merge')">+ 合并导入</button>
         <p style="font-size:11px;color:var(--text-lighter);text-align:center;margin:0">保留现有数据，追加新脸码</p>
         <button class="btn btn-s" onclick="doImport('replace')">&#8635; 覆盖导入</button>
@@ -606,6 +645,13 @@
 </div>
 
 <div class="toast" id="toast"></div>
+
+<!-- Global Loading Overlay -->
+<div class="loading-ov" id="loadingOverlay">
+  <div class="loading-spinner"></div>
+  <div class="loading-title" id="loadingTitle">处理中…</div>
+  <div class="loading-msg" id="loadingMsg"></div>
+</div>
 
 <script>
 const DB_NAME = 'FaceCodeDB_v1';
@@ -758,8 +804,15 @@ function renderCustomFields() {
 document.getElementById('uploadArea').addEventListener('click',e=>{if(e.target.tagName!=='INPUT')document.getElementById('imgInput').click();});
 function startCrop(file){
   if(!file)return;
+  showLoading('正在读取图片…', '');
   const r=new FileReader();
-  r.onload=e=>{const img=new Image();img.onload=()=>openCropUI(img);img.src=e.target.result;};
+  r.onload=e=>{
+    const img=new Image();
+    img.onload=()=>{hideLoading();openCropUI(img);};
+    img.onerror=()=>{hideLoading();toast('图片读取失败');};
+    img.src=e.target.result;
+  };
+  r.onerror=()=>{hideLoading();toast('文件读取失败');};
   r.readAsDataURL(file);
 }
 function openCropUI(img){
@@ -941,12 +994,43 @@ function doImport(mode){
   pendingImports=[...pendingImportData];
   skippedDupCount=0;
   closeImportModal();
+  showImportProgress();
   processImportQueue();
 }
-function cancelImport(){closeImportModal();}
+function cancelImport(){hideImportProgress();closeImportModal();pendingImportData=null;pendingImports=[];pendingImportsAll=[];}
 
 function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2200);}
 function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+// ── Loading Overlay ──
+function showLoading(title, msg) {
+  document.getElementById('loadingTitle').textContent = title || '处理中…';
+  document.getElementById('loadingMsg').textContent = msg || '';
+  document.getElementById('loadingOverlay').classList.add('open');
+}
+function hideLoading() {
+  document.getElementById('loadingOverlay').classList.remove('open');
+}
+
+// ── Import Progress ──
+function showImportProgress() {
+  document.getElementById('importProgressBox').classList.add('show');
+  document.getElementById('importBtns').style.display = 'none';
+  updateImportProgress(0);
+}
+function updateImportProgress(pct, label) {
+  const total = pendingImportsAll.length;
+  const done = total - pendingImports.length;
+  const p = total > 0 ? Math.round((done / total) * 100) : 0;
+  document.getElementById('importProgressFill').style.width = p + '%';
+  document.getElementById('importProgressPct').textContent = p + '%';
+  if (label) document.getElementById('importProgressLabel').textContent = label;
+  else document.getElementById('importProgressLabel').textContent = `正在导入 ${done}/${total}…`;
+}
+function hideImportProgress() {
+  document.getElementById('importProgressBox').classList.remove('show');
+  document.getElementById('importBtns').style.display = '';
+}
 
 // ── 批量操作 ──
 function enterBatchMode() {
@@ -1189,6 +1273,7 @@ function dupAction(action) {
 function processImportQueue() {
   if (pendingImports.length === 0) {
     closeImportModal();
+    hideImportProgress();
     dbPut('faceList', faces).then(() => {
       const total = pendingImportsAll.length;
       const skipped = skippedDupCount;
@@ -1196,6 +1281,10 @@ function processImportQueue() {
     }).catch(() => toast('导入保存失败'));
     return;
   }
+  const total = pendingImportsAll.length;
+  const done = total - pendingImports.length;
+  updateImportProgress(Math.round((done / total) * 100));
+
   const f = pendingImports[0];
   const dup = findDuplicate(f, f.id);
   if (dup) {
@@ -1217,6 +1306,6 @@ if ('serviceWorker' in navigator) {
 
 init();
 </script>
-<div style="text-align:center;font-size:8px;color:#e0dce8;padding:8px 0 4px;line-height:1;">v2.2</div>
+<div style="text-align:center;font-size:8px;color:#e0dce8;padding:8px 0 4px;line-height:1;">v2.3</div>
 </body>
 </html>
