@@ -1298,13 +1298,13 @@ function processImportQueue() {
 document.querySelectorAll('.modal-ov').forEach(ov=>{ov.addEventListener('click',e=>{if(e.target===ov)ov.classList.remove('open');});});
 
 // PWA Service Worker
-const SW_VERSION = 6;
+const SW_VERSION = 7;
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js?v=' + SW_VERSION).catch(() => {});
 }
 
 init();
 </script>
-<div style="text-align:center;font-size:8px;color:#e0dce8;padding:8px 0 4px;line-height:1;">v2.3</div>
+<div style="text-align:center;font-size:8px;color:#e0dce8;padding:8px 0 4px;line-height:1;">v2.3.01</div>
 </body>
 </html>
