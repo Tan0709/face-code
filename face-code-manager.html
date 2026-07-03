@@ -893,7 +893,6 @@ function openAddModal(edit=null){
   if(edit&&edit.img){const pr=document.getElementById('uploadPreview');pr.src=edit.img;pr.style.display='block';pr.className='up-preview';document.getElementById('uploadHint').style.display='none';}
   document.getElementById('addCustomBox').style.display='none';
   document.getElementById('addModal').classList.add('open');
-  window.scrollTo({top:0,behavior:'smooth'});
 }
 function closeAddModal(){document.getElementById('addModal').classList.remove('open');editingId=null;pendingCustomFields=[];}
 function toggleRbox(el){el.classList.toggle('on');}
@@ -945,7 +944,6 @@ function openDetail(id){
     return`<div class="det-code"><div class="det-code-hd"><span class="det-code-lbl">${esc(field.label)}</span><button class="cpbtn" id="${bid}" onclick="copyCode('${field.key}','${field.isFixed?0:1}')">&#10002; 复制</button></div><div class="code-box"><div class="code-txt">${esc(code)}</div></div></div>`;
   }).join('');
   document.getElementById('detailModal').classList.add('open');
-  window.scrollTo({top:0,behavior:'smooth'});
 }
 function copyCode(key,isFixed){
   const code=isFixed==='1'?(currentCustomFields.find(c=>'cust_'+c.id===key)||{value:''}).value||'':(currentCodes[key]||'');
@@ -1300,7 +1298,7 @@ function processImportQueue() {
 document.querySelectorAll('.modal-ov').forEach(ov=>{ov.addEventListener('click',e=>{if(e.target===ov)ov.classList.remove('open');});});
 
 // PWA Service Worker
-const SW_VERSION = 5;
+const SW_VERSION = 6;
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js?v=' + SW_VERSION).catch(() => {});
 }
