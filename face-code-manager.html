@@ -1300,8 +1300,9 @@ function processImportQueue() {
 document.querySelectorAll('.modal-ov').forEach(ov=>{ov.addEventListener('click',e=>{if(e.target===ov)ov.classList.remove('open');});});
 
 // PWA Service Worker
+const SW_VERSION = 5;
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('sw.js').catch(() => {});
+  navigator.serviceWorker.register('sw.js?v=' + SW_VERSION).catch(() => {});
 }
 
 init();
