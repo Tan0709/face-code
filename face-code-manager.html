@@ -423,6 +423,42 @@
   body.batch-active .fab-backdrop { display: none !important; }
   body.batch-active .fab-menu { display: none !important; }
   body.batch-active .header-btn { display: none; }
+
+  /* ── Scroll Jump ── */
+  .jump-btns {
+    position: fixed;
+    right: 16px;
+    bottom: calc(80px + var(--safe-bottom));
+    z-index: 90;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(12px);
+    transition: opacity 0.3s, transform 0.3s;
+  }
+  .jump-btns.show {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0);
+  }
+  .jump-btn {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: var(--card);
+    border: 1.5px solid var(--border);
+    box-shadow: var(--shadow);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: var(--text-light);
+  }
+  .jump-btn:active { transform: scale(0.9); background: var(--accent); color: #fff; border-color: var(--accent); }
 </style>
 </head>
 <body>
@@ -480,6 +516,13 @@
 <div class="fab-menu" id="fabMenu">
   <button class="fab-menu-item" onclick="exportData()"><span>&#8657;</span> 导出数据</button>
   <button class="fab-menu-item" onclick="openImportModal()"><span>&#8659;</span> 导入数据</button>
+  <button class="fab-menu-item" onclick="checkAllDuplicates()"><span>&#10004;</span> 内容查重</button>
+</div>
+
+<!-- Scroll Jump -->
+<div class="jump-btns" id="jumpBtns">
+  <button class="jump-btn" onclick="scrollToTop()" title="顶部">&#8679;</button>
+  <button class="jump-btn" onclick="scrollToBottom()" title="底部">&#8681;</button>
 </div>
 
 <!-- Add Modal -->
@@ -593,6 +636,18 @@
   </div>
 </div>
 
+<!-- Strict Duplicate Modal (新增时禁止重复) -->
+<div class="modal-ov" id="strictDupModal">
+  <div class="modal">
+    <div class="mh"></div>
+    <div class="mtitle">&#9888; 内容重复</div>
+    <div id="strictDupInfo"></div>
+    <div class="btn-row" style="margin-top:14px;">
+      <button class="btn btn-p" onclick="closeStrictDupModal()" style="flex:1">我知道了</button>
+    </div>
+  </div>
+</div>
+
 <!-- Detail -->
 <div class="modal-ov" id="detailModal">
   <div class="modal">
@@ -605,6 +660,18 @@
       <button class="btn btn-s" onclick="openEditFromDetail()">&#9998; 编辑</button>
       <button class="btn btn-s" onclick="closeDetailModal()">关闭</button>
       <button class="btn btn-d" onclick="deleteFace()">&#10005; 删除</button>
+    </div>
+  </div>
+</div>
+
+<!-- Duplicate List Modal -->
+<div class="modal-ov" id="dupListModal">
+  <div class="modal">
+    <div class="mh"></div>
+    <div class="mtitle">内容查重结果</div>
+    <div id="dupListBody" style="max-height:60vh;overflow-y:auto;"></div>
+    <div class="btn-row" style="margin-top:14px;">
+      <button class="btn btn-s" onclick="document.getElementById('dupListModal').classList.remove('open')" style="flex:1">关闭</button>
     </div>
   </div>
 </div>
@@ -656,7 +723,7 @@
 <script>
 const DB_NAME = 'FaceCodeDB_v1';
 const STORE_KEY = 'faces';
-const PAGE_VERSION = 'v2.3.03'; // 版本标记，CDN缓存检测用
+const PAGE_VERSION = 'v2.3.04'; // 版本标记，CDN缓存检测用
 const FIXED = [{key:'cnBare',label:'国服无妆'},{key:'cnMakeup',label:'国服带妆'},{key:'sea',label:'新马服'}];
 const ASPECT = 6/9, OUT_W = 400;
 let faces = [], filter = {gender:'all',region:'all'};
@@ -943,6 +1010,16 @@ function saveFace(){
   const codes={cnBare:(document.getElementById('f_cnBare')||{value:''}).value.trim(),cnMakeup:(document.getElementById('f_cnMakeup')||{value:''}).value.trim(),sea:(document.getElementById('f_sea')||{value:''}).value.trim()};
   const customFields=pendingCustomFields.map(f=>({id:f.id,label:f.label,value:(document.getElementById('fc_'+f.id)||{value:''}).value.trim()}));
   const data={id:editingId||Date.now().toString(),name,gender,region,codes,customFields,img};
+  
+  // 新增时严格查重：内容字段（国服无妆/带妆/新马服/自定义）不允许与已有脸码重复
+  if (!editingId) {
+    const strictDup = strictCheckDuplicate(data);
+    if (strictDup) {
+      openStrictDupModal(strictDup, data);
+      return;
+    }
+  }
+
   const dup=findDuplicate(data,editingId);
   if(dup){
     showDuplicateModal(data,dup,'save');
@@ -1212,6 +1289,71 @@ function batchExport() {
   toast(`已导出 ${toExport.length} 条脸码`);
 }
 
+// 严格查重：新增时内容字段完全禁止重复（直接报错）
+function strictCheckDuplicate(newFace) {
+  const newCodes = newFace.codes || {};
+  const newCustom = newFace.customFields || [];
+  const ALL_KEYS = ['cnBare', 'cnMakeup', 'sea'];
+
+  // 收集所有非空字段
+  const newVals = [];
+  ALL_KEYS.forEach(k => {
+    const v = (newCodes[k] || '').trim();
+    if (v) newVals.push({ key: k, val: v });
+  });
+  newCustom.forEach(c => {
+    const v = (c.value || '').trim();
+    if (v) newVals.push({ key: 'cust_' + c.id, val: v });
+  });
+  if (newVals.length === 0) return null; // 没填任何内容，不查重
+
+  for (const exist of faces) {
+    const existCodes = exist.codes || {};
+    const existCustom = exist.customFields || [];
+    for (const { key, val } of newVals) {
+      let existVal = '';
+      if (key.startsWith('cust_')) {
+        const cf = existCustom.find(c => 'cust_' + c.id === key);
+        if (cf) existVal = (cf.value || '').trim();
+      } else {
+        existVal = (existCodes[key] || '').trim();
+      }
+      if (existVal === val) {
+        const label = key.startsWith('cust_') ? getCustomFieldLabel(key.replace('cust_', '')) : (FIXED.find(fx => fx.key === key) || { label: key }).label;
+        return { exist, matchedKey: key, label };
+      }
+    }
+  }
+  return null;
+}
+
+// 严格重复弹窗（新增时，不给替换选项）
+let pendingStrictDup = null;
+
+function openStrictDupModal(dupInfo, newFace) {
+  pendingStrictDup = { newFace, dupInfo };
+  const { exist, label } = dupInfo;
+  const imgHtml = exist.img
+    ? `<img src="${exist.img}" style="width:56px;height:75px;object-fit:cover;border-radius:10px;flex-shrink:0;">`
+    : `<div style="width:56px;height:75px;background:linear-gradient(145deg,#F5F0FA,#F0F5FA);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:22px;opacity:0.4;flex-shrink:0;">&#9670;</div>`;
+  document.getElementById('strictDupInfo').innerHTML = `
+    <div style="display:flex;gap:14px;align-items:center;padding:14px;background:var(--bg);border-radius:16px;margin-bottom:12px;">
+      ${imgHtml}
+      <div>
+        <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px;">${esc(exist.name)}</div>
+        <div style="font-size:12px;color:var(--text-light);">已存在相同 <b style="color:var(--accent-dark)">${esc(label)}</b></div>
+      </div>
+    </div>
+    <p style="font-size:13px;color:var(--text-light);text-align:center;line-height:1.7;">内容字段不允许与已有脸码重复，请检查后重新输入。</p>
+  `;
+  document.getElementById('strictDupModal').classList.add('open');
+}
+
+function closeStrictDupModal() {
+  document.getElementById('strictDupModal').classList.remove('open');
+  pendingStrictDup = null;
+}
+
 // 查找重复：返回第一个发现重复的已有脸码，及其匹配字段
 function findDuplicate(newFace, excludeId = null) {
   const newCodes = newFace.codes || {};
@@ -1331,7 +1473,7 @@ function processImportQueue() {
 document.querySelectorAll('.modal-ov').forEach(ov=>{ov.addEventListener('click',e=>{if(e.target===ov)ov.classList.remove('open');});});
 
 // PWA Service Worker
-const SW_VERSION = 9;
+const SW_VERSION = 10;
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js?v=' + SW_VERSION + '&t=' + Date.now()).catch(() => {});
 }
@@ -1343,8 +1485,140 @@ window.addEventListener('message', e => {
   }
 });
 
+// ── 滚动跳转 ──
+window.addEventListener('scroll', () => {
+  const jb = document.getElementById('jumpBtns');
+  if (!jb) return;
+  if (window.scrollY > 300) {
+    jb.classList.add('show');
+  } else {
+    jb.classList.remove('show');
+  }
+}, { passive: true });
+
+function scrollToTop() {
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+function scrollToBottom() {
+  window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+}
+
+// ── 全量内容查重 ──
+function checkAllDuplicates() {
+  hideFabMenu();
+  if (faces.length === 0) {
+    toast('还没有脸码');
+    return;
+  }
+  const groups = {};
+  // 收集所有有内容的字段键
+  const ALL_KEYS = ['cnBare', 'cnMakeup', 'sea'];
+
+  faces.forEach(f => {
+    const codes = f.codes || {};
+    const custom = f.customFields || [];
+    // 遍历固定字段
+    ALL_KEYS.forEach(k => {
+      const v = (codes[k] || '').trim();
+      if (!v) return;
+      if (!groups[k]) groups[k] = {};
+      if (!groups[k][v]) groups[k][v] = [];
+      groups[k][v].push(f);
+    });
+    // 遍历自定义字段
+    custom.forEach(c => {
+      const v = (c.value || '').trim();
+      if (!v) return;
+      const k = 'cust_' + c.id;
+      if (!groups[k]) groups[k] = {};
+      if (!groups[k][v]) groups[k][v] = [];
+      groups[k][v].push(f);
+    });
+  });
+
+  // 过滤出重复的
+  const dups = [];
+  Object.entries(groups).forEach(([k, valMap]) => {
+    Object.entries(valMap).forEach(([v, arr]) => {
+      if (arr.length >= 2) {
+        const label = k.startsWith('cust_') ? (customFields_map[k.replace('cust_','')] || k) : (FIXED.find(fx=>fx.key===k)||{label:k}).label;
+        dups.push({ key: k, label, value: v, faces: arr });
+      }
+    });
+  });
+
+  if (dups.length === 0) {
+    openDupListModal([]);
+  } else {
+    openDupListModal(dups);
+  }
+}
+
+// 用于查重弹窗中快速查找自定义字段名
+function getCustomFieldLabel(id) {
+  for (const f of faces) {
+    const c = (f.customFields||[]).find(x=>x.id===id);
+    if (c) return c.label;
+  }
+  // 也查 pending 里的
+  for (const c of pendingCustomFields) {
+    if (c.id === id) return c.label;
+  }
+  return id;
+}
+function customFields_map(id) { return getCustomFieldLabel(id); }
+
+function openDupListModal(dups) {
+  const body = document.getElementById('dupListBody');
+  if (dups.length === 0) {
+    body.innerHTML = `<div style="text-align:center;padding:30px 0;color:var(--text-lighter);font-size:14px;">
+      <div style="font-size:36px;margin-bottom:10px;">&#10004;</div>
+      <div>没有重复内容</div>
+      <div style="margin-top:6px;font-size:12px;">各脸码的脸码内容均唯一</div>
+    </div>`;
+  } else {
+    body.innerHTML = dups.map(d => `
+      <div style="margin-bottom:16px;padding:12px 14px;background:var(--bg);border-radius:14px;">
+        <div style="font-size:12px;color:var(--accent-dark);font-weight:500;margin-bottom:6px;">${esc(d.label)} 重复 (${d.faces.length}条)</div>
+        ${d.faces.map(f => `
+          <div style="display:flex;align-items:center;gap:10px;padding:6px 0;" onclick="jumpToFace('${f.id}')">
+            <div style="width:32px;height:43px;border-radius:7px;overflow:hidden;flex-shrink:0;background:#F0F0F0;">
+              ${f.img ? `<img src="${f.img}" style="width:100%;height:100%;object-fit:cover;">` : '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:14px;opacity:0.4;">&#9670;</div>'}
+            </div>
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:13px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(f.name)}</div>
+              <div style="font-size:11px;color:var(--text-light);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(d.value.substring(0,40))}${d.value.length>40?'…':''}</div>
+            </div>
+            <div style="font-size:12px;color:var(--text-lighter);">&#10140;</div>
+          </div>
+        `).join('')}
+      </div>
+    `).join('');
+  }
+  document.getElementById('dupListModal').classList.add('open');
+}
+
+function jumpToFace(id) {
+  document.getElementById('dupListModal').classList.remove('open');
+  const F = getFiltered();
+  if (!F.find(f => f.id === id)) {
+    toast('该脸码不在当前筛选结果中');
+    return;
+  }
+  scrollToTop();
+  setTimeout(() => {
+    const el = document.querySelector(`.card[data-id="${id}"]`);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el.style.outline = '2.5px solid var(--accent)';
+      el.style.outlineOffset = '3px';
+      setTimeout(() => { el.style.outline = ''; el.style.outlineOffset = ''; }, 2000);
+    }
+  }, 300);
+}
+
 init();
 </script>
-<div style="text-align:center;font-size:8px;color:#e0dce8;padding:8px 0 4px;line-height:1;">v2.3.03</div>
+<div style="text-align:center;font-size:8px;color:#e0dce8;padding:8px 0 4px;line-height:1;">v2.3.04</div>
 </body>
 </html>
