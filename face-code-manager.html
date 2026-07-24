@@ -668,10 +668,22 @@
 <div class="modal-ov" id="dupListModal">
   <div class="modal">
     <div class="mh"></div>
-    <div class="mtitle">内容查重结果</div>
-    <div id="dupListBody" style="max-height:60vh;overflow-y:auto;"></div>
-    <div class="btn-row" style="margin-top:14px;">
-      <button class="btn btn-s" onclick="document.getElementById('dupListModal').classList.remove('open')" style="flex:1">关闭</button>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+      <div class="mtitle" style="margin-bottom:0;">内容查重结果</div>
+      <button id="dupSelectAllBtn" onclick="selectAllDup()" style="font-size:12px;padding:5px 12px;border-radius:10px;border:1.5px solid var(--border);background:var(--card);color:var(--text-light);cursor:pointer;font-family:inherit;">全选</button>
+    </div>
+    <div id="dupListBody" style="max-height:52vh;overflow-y:auto;"></div>
+    <div id="dupActionBar" style="display:none;margin-top:12px;">
+      <div id="dupSelectedInfo" style="font-size:12px;color:var(--text-light);text-align:center;margin-bottom:8px;"></div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-s" onclick="closeDupListModal()" style="flex:1">关闭</button>
+        <button class="btn btn-d" id="dupDelBtn" onclick="deleteSelectedDup()" style="flex:1;background:#FFF8F8;border-color:#E8C0C8;color:#C06070;">&#10005; 删除</button>
+      </div>
+    </div>
+    <div id="dupCloseBar">
+      <div class="btn-row" style="margin-top:12px;">
+        <button class="btn btn-s" onclick="closeDupListModal()" style="flex:1">关闭</button>
+      </div>
     </div>
   </div>
 </div>
@@ -723,7 +735,7 @@
 <script>
 const DB_NAME = 'FaceCodeDB_v1';
 const STORE_KEY = 'faces';
-const PAGE_VERSION = 'v2.3.04'; // 版本标记，CDN缓存检测用
+const PAGE_VERSION = 'v2.3.05'; // 版本标记，CDN缓存检测用
 const FIXED = [{key:'cnBare',label:'国服无妆'},{key:'cnMakeup',label:'国服带妆'},{key:'sea',label:'新马服'}];
 const ASPECT = 6/9, OUT_W = 400;
 let faces = [], filter = {gender:'all',region:'all'};
@@ -1473,7 +1485,7 @@ function processImportQueue() {
 document.querySelectorAll('.modal-ov').forEach(ov=>{ov.addEventListener('click',e=>{if(e.target===ov)ov.classList.remove('open');});});
 
 // PWA Service Worker
-const SW_VERSION = 10;
+const SW_VERSION = 11;
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js?v=' + SW_VERSION + '&t=' + Date.now()).catch(() => {});
 }
@@ -1568,34 +1580,114 @@ function getCustomFieldLabel(id) {
 }
 function customFields_map(id) { return getCustomFieldLabel(id); }
 
+let dupListSelected = new Set();
+let dupListAllIds = [];
+
 function openDupListModal(dups) {
+  dupListSelected.clear();
   const body = document.getElementById('dupListBody');
   if (dups.length === 0) {
+    dupListAllIds = [];
     body.innerHTML = `<div style="text-align:center;padding:30px 0;color:var(--text-lighter);font-size:14px;">
       <div style="font-size:36px;margin-bottom:10px;">&#10004;</div>
       <div>没有重复内容</div>
       <div style="margin-top:6px;font-size:12px;">各脸码的脸码内容均唯一</div>
     </div>`;
+    document.getElementById('dupActionBar').style.display = 'none';
+    document.getElementById('dupCloseBar').style.display = '';
   } else {
+    // 收集所有脸的 id
+    const allIds = new Set();
+    dups.forEach(g => g.faces.forEach(f => allIds.add(f.id)));
+    dupListAllIds = [...allIds];
+
     body.innerHTML = dups.map(d => `
-      <div style="margin-bottom:16px;padding:12px 14px;background:var(--bg);border-radius:14px;">
+      <div style="margin-bottom:14px;padding:12px 14px;background:var(--bg);border-radius:14px;">
         <div style="font-size:12px;color:var(--accent-dark);font-weight:500;margin-bottom:6px;">${esc(d.label)} 重复 (${d.faces.length}条)</div>
-        ${d.faces.map(f => `
-          <div style="display:flex;align-items:center;gap:10px;padding:6px 0;" onclick="jumpToFace('${f.id}')">
+        ${d.faces.map(f => {
+          const sel = dupListSelected.has(f.id);
+          return `
+          <div style="display:flex;align-items:center;gap:10px;padding:6px 0;cursor:pointer;" data-dupid="${f.id}" onclick="toggleDupSelect('${f.id}', event)">
+            <div style="width:20px;height:20px;border-radius:50%;border:1.5px solid ${sel?'var(--accent)':'var(--border), #D0C8E0'};background:${sel?'var(--accent)':'var(--card)'};display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all 0.15s;${sel?'box-shadow:0 1px 4px rgba(196,170,220,0.4);':''}">
+              ${sel ? '<div style="width:10px;height:6px;background-image:url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2710%27 height=%276%27 viewBox=%270 0 10 6%27%3E%3Cpath d=%27M1 3l3 3 5-6%27 stroke=%27%23fff%27 stroke-width=%271.8%27 fill=%27none%27 stroke-linecap=%27round%27/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:center;"></div>' : ''}
+            </div>
             <div style="width:32px;height:43px;border-radius:7px;overflow:hidden;flex-shrink:0;background:#F0F0F0;">
               ${f.img ? `<img src="${f.img}" style="width:100%;height:100%;object-fit:cover;">` : '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:14px;opacity:0.4;">&#9670;</div>'}
             </div>
-            <div style="flex:1;min-width:0;">
+            <div style="flex:1;min-width:0;" onclick="jumpToFace('${f.id}')">
               <div style="font-size:13px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(f.name)}</div>
               <div style="font-size:11px;color:var(--text-light);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(d.value.substring(0,40))}${d.value.length>40?'…':''}</div>
             </div>
-            <div style="font-size:12px;color:var(--text-lighter);">&#10140;</div>
-          </div>
-        `).join('')}
+            <div style="font-size:12px;color:var(--text-lighter);" onclick="jumpToFace('${f.id}')">&#10140;</div>
+          </div>`;
+        }).join('')}
       </div>
     `).join('');
+    document.getElementById('dupActionBar').style.display = '';
+    document.getElementById('dupCloseBar').style.display = 'none';
+    updateDupActionBar();
   }
   document.getElementById('dupListModal').classList.add('open');
+}
+
+function toggleDupSelect(id, e) {
+  e.stopPropagation();
+  if (dupListSelected.has(id)) {
+    dupListSelected.delete(id);
+  } else {
+    dupListSelected.add(id);
+  }
+  updateDupCheckUI(id);
+  updateDupActionBar();
+}
+
+function updateDupCheckUI(id) {
+  const row = document.querySelector(`[data-dupid="${id}"]`);
+  if (!row) return;
+  const sel = dupListSelected.has(id);
+  const circle = row.querySelector('div:first-child');
+  circle.style.borderColor = sel ? 'var(--accent)' : 'var(--border)';
+  circle.style.background = sel ? 'var(--accent)' : 'var(--card)';
+  circle.innerHTML = sel ? '<div style="width:10px;height:6px;background-image:url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2710%27 height=%276%27 viewBox=%270 0 10 6%27%3E%3Cpath d=%27M1 3l3 3 5-6%27 stroke=%27%23fff%27 stroke-width=%271.8%27 fill=%27none%27 stroke-linecap=%27round%27/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:center;"></div>' : '';
+}
+
+function selectAllDup() {
+  if (dupListSelected.size === dupListAllIds.length) {
+    dupListSelected.clear();
+    document.getElementById('dupSelectAllBtn').textContent = '全选';
+  } else {
+    dupListAllIds.forEach(id => dupListSelected.add(id));
+    document.getElementById('dupSelectAllBtn').textContent = '取消全选';
+  }
+  dupListAllIds.forEach(id => updateDupCheckUI(id));
+  updateDupActionBar();
+}
+
+function updateDupActionBar() {
+  const n = dupListSelected.size;
+  const total = dupListAllIds.length;
+  const selAll = n > 0 && n === total;
+  document.getElementById('dupSelectAllBtn').textContent = selAll ? '取消全选' : '全选';
+  document.getElementById('dupSelectedInfo').textContent = n > 0 ? `已选 ${n} 项` : `点击勾选要删除的脸码`;
+  document.getElementById('dupDelBtn').disabled = n === 0;
+  document.getElementById('dupDelBtn').style.opacity = n === 0 ? '0.5' : '1';
+}
+
+function deleteSelectedDup() {
+  const ids = [...dupListSelected];
+  if (ids.length === 0) return;
+  if (!confirm(`确定要删除选中的 ${ids.length} 个脸码吗？`)) return;
+  faces = faces.filter(f => !dupListSelected.has(f.id));
+  render();
+  dbPut('faceList', faces).then(() => {
+    closeDupListModal();
+    toast(`已删除 ${ids.length} 个脸码`);
+  }).catch(() => toast('删除失败'));
+}
+
+function closeDupListModal() {
+  document.getElementById('dupListModal').classList.remove('open');
+  dupListSelected.clear();
 }
 
 function jumpToFace(id) {
@@ -1619,6 +1711,6 @@ function jumpToFace(id) {
 
 init();
 </script>
-<div style="text-align:center;font-size:8px;color:#e0dce8;padding:8px 0 4px;line-height:1;">v2.3.04</div>
+<div style="text-align:center;font-size:8px;color:#e0dce8;padding:8px 0 4px;line-height:1;">v2.3.05</div>
 </body>
 </html>
