@@ -729,7 +729,7 @@
 <script>
 const DB_NAME = 'FaceCodeDB_v1';
 const STORE_KEY = 'faces';
-const PAGE_VERSION = 'v2.3.07'; // 版本标记，CDN缓存检测用
+const PAGE_VERSION = 'v2.3.08'; // 版本标记，CDN缓存检测用
 const FIXED = [{key:'cnBare',label:'国服无妆'},{key:'cnMakeup',label:'国服带妆'},{key:'sea',label:'新马服'}];
 const ASPECT = 6/9, OUT_W = 400;
 let faces = [], filter = {gender:'all',region:'all'};
@@ -1436,7 +1436,9 @@ function processImportQueue() {
   updateImportProgress(Math.round((done / total) * 100));
 
   const f = pendingImports[0];
-  const allDups = findAllDuplicates(f, f.id);
+  // 注意：导入查重时不传 excludeId，因为导入的脸码还没进 faces 列表，
+  // 不会自重复。如果传了 f.id 反而会把已有同 id 的脸码排除掉，导致查重失效。
+  const allDups = findAllDuplicates(f, null);
   if (allDups.length > 0) {
     if (importAutoAction === 'replace') {
       // 自动替换：不弹窗，直接覆盖
@@ -1463,7 +1465,7 @@ function processImportQueue() {
 document.querySelectorAll('.modal-ov').forEach(ov=>{ov.addEventListener('click',e=>{if(e.target===ov)ov.classList.remove('open');});});
 
 // PWA Service Worker
-const SW_VERSION = 13;
+const SW_VERSION = 14;
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js?v=' + SW_VERSION + '&t=' + Date.now()).catch(() => {});
 }
@@ -1690,6 +1692,6 @@ function jumpToFace(id) {
 
 init();
 </script>
-<div style="text-align:center;font-size:8px;color:#e0dce8;padding:8px 0 4px;line-height:1;">v2.3.07</div>
+<div style="text-align:center;font-size:8px;color:#e0dce8;padding:8px 0 4px;line-height:1;">v2.3.08</div>
 </body>
 </html>

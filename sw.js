@@ -1,5 +1,5 @@
 // SW_VERSION 每次发布新版本时将此处改为新数字即可触发更新
-const CACHE_NAME = 'face-code-v9';
+const CACHE_NAME = 'face-code-v10';
 const ASSETS = ['./face-code-manager.html', './manifest.json', './'];
 
 const PAGE_VERSION_KEY = 'page_version';
