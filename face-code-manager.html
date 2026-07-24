@@ -630,20 +630,14 @@
     <div class="btn-row">
       <button class="btn btn-p" onclick="dupAction('replace')">&#8635; 替换之前的脸码</button>
     </div>
+    <div id="dupAllReplaceRow" class="btn-row" style="display:none;">
+      <button class="btn btn-p" onclick="dupAction('replace_all')" style="background:var(--accent-dark);">全部替换剩余项</button>
+    </div>
     <div class="btn-row">
       <button class="btn btn-s" id="dupCancelBtn" onclick="dupAction('cancel')">取消保存</button>
     </div>
-  </div>
-</div>
-
-<!-- Strict Duplicate Modal (新增时禁止重复) -->
-<div class="modal-ov" id="strictDupModal">
-  <div class="modal">
-    <div class="mh"></div>
-    <div class="mtitle">&#9888; 内容重复</div>
-    <div id="strictDupInfo"></div>
-    <div class="btn-row" style="margin-top:14px;">
-      <button class="btn btn-p" onclick="closeStrictDupModal()" style="flex:1">我知道了</button>
+    <div id="dupAllSkipRow" class="btn-row" style="display:none;">
+      <button class="btn btn-s" onclick="dupAction('skip_all')" style="color:var(--text-lighter);">全部跳过剩余项</button>
     </div>
   </div>
 </div>
@@ -735,7 +729,7 @@
 <script>
 const DB_NAME = 'FaceCodeDB_v1';
 const STORE_KEY = 'faces';
-const PAGE_VERSION = 'v2.3.06'; // 版本标记，CDN缓存检测用
+const PAGE_VERSION = 'v2.3.07'; // 版本标记，CDN缓存检测用
 const FIXED = [{key:'cnBare',label:'国服无妆'},{key:'cnMakeup',label:'国服带妆'},{key:'sea',label:'新马服'}];
 const ASPECT = 6/9, OUT_W = 400;
 let faces = [], filter = {gender:'all',region:'all'};
@@ -747,6 +741,7 @@ let pendingDup = null; // { mode:'save'|'import', newFace, dupFace }
 let pendingImports = [];
 let pendingImportsAll = [];
 let skippedDupCount = 0;
+let importAutoAction = null; // 'replace' | 'skip' | null — 导入时自动处理重复项的标志
 
 // 批量模式
 let batchMode = false;
@@ -1023,15 +1018,7 @@ function saveFace(){
   const customFields=pendingCustomFields.map(f=>({id:f.id,label:f.label,value:(document.getElementById('fc_'+f.id)||{value:''}).value.trim()}));
   const data={id:editingId||Date.now().toString(),name,gender,region,codes,customFields,img};
   
-  // 新增时严格查重：内容字段（国服无妆/带妆/新马服/自定义）不允许与已有脸码重复
-  if (!editingId) {
-    const allDups = findAllDuplicates(data);
-    if (allDups.length > 0) {
-      openStrictDupModal(allDups[0], data);
-      return;
-    }
-  }
-
+  // 查重：检查所有代码字段（国服无妆/带妆/新马服/自定义）是否与已有脸码重复
   const dup=findAllDuplicates(data,editingId);
   if(dup.length > 0){
     showDuplicateModal(data,dup[0],'save');
@@ -1113,6 +1100,7 @@ function doImport(mode){
   pendingImportsAll=[...pendingImportData];
   pendingImports=[...pendingImportData];
   skippedDupCount=0;
+  importAutoAction=null;
   closeImportModal();
   showImportProgress();
   processImportQueue();
@@ -1301,29 +1289,6 @@ function batchExport() {
   toast(`已导出 ${toExport.length} 条脸码`);
 }
 
-// 严格重复弹窗（新增时，禁止重复——不显示替换按钮）
-function openStrictDupModal(dupInfo, newFace) {
-  const { exist, label } = dupInfo;
-  const imgHtml = exist.img
-    ? `<img src="${exist.img}" style="width:56px;height:75px;object-fit:cover;border-radius:10px;flex-shrink:0;">`
-    : `<div style="width:56px;height:75px;background:linear-gradient(145deg,#F5F0FA,#F0F5FA);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:22px;opacity:0.4;flex-shrink:0;">&#9670;</div>`;
-  document.getElementById('strictDupInfo').innerHTML = `
-    <div style="display:flex;gap:14px;align-items:center;padding:14px;background:var(--bg);border-radius:16px;margin-bottom:12px;">
-      ${imgHtml}
-      <div>
-        <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:3px;">${esc(exist.name)}</div>
-        <div style="font-size:12px;color:var(--text-light);">已存在相同 <b style="color:var(--accent-dark)">${esc(label)}</b></div>
-      </div>
-    </div>
-    <p style="font-size:13px;color:var(--text-light);text-align:center;line-height:1.7;">内容字段不允许与已有脸码重复，请检查后重新输入。</p>
-  `;
-  document.getElementById('strictDupModal').classList.add('open');
-}
-
-function closeStrictDupModal() {
-  document.getElementById('strictDupModal').classList.remove('open');
-}
-
 // 查找重复：返回第一个发现重复的已有脸码，及其匹配字段
 function findDuplicate(newFace, excludeId = null) {
   const newCodes = newFace.codes || {};
@@ -1394,18 +1359,20 @@ function findAllDuplicates(newFace, excludeId = null) {
   return results;
 }
 
-// 显示重复弹窗（单条保存时显示第一条匹配）
-function showDuplicateModal(newFace, dupFace, mode) {
-  pendingDup = { mode, newFace, dupFace };
-  const imgHtml = dupFace.img
-    ? `<img src="${dupFace.img}" style="width:60px;height:80px;object-fit:cover;border-radius:10px;flex-shrink:0;">`
+// 显示重复弹窗（单条保存/导入时显示匹配信息）
+function showDuplicateModal(newFace, dupInfo, mode) {
+  pendingDup = { mode, newFace, dupInfo };
+  const exist = dupInfo.exist;
+  const imgHtml = exist.img
+    ? `<img src="${exist.img}" style="width:60px;height:80px;object-fit:cover;border-radius:10px;flex-shrink:0;">`
     : `<div style="width:60px;height:80px;background:linear-gradient(145deg,#F5F0FA,#F0F5FA);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:24px;opacity:0.4;flex-shrink:0;">&#9670;</div>`;
+  const fieldLabel = dupInfo.label || (FIXED.find(f=>f.key===dupInfo.matchedKey)||{label:dupInfo.matchedKey}).label;
   document.getElementById('dupInfo').innerHTML = `
     <div style="display:flex;gap:14px;align-items:center;padding:14px;background:var(--bg);border-radius:16px;margin-bottom:14px;">
       ${imgHtml}
       <div>
-        <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:4px;">${esc(dupFace.name)}</div>
-        <div style="font-size:12px;color:var(--text-light);">已有相同 <b style="color:var(--accent-dark)">${esc(dupFace.matchedKey ? (FIXED.find(f=>f.key===dupFace.matchedKey)||{label:dupFace.label}).label : dupFace.label)}</b> 脸码</div>
+        <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:4px;">${esc(exist.name)}</div>
+        <div style="font-size:12px;color:var(--text-light);">已有相同 <b style="color:var(--accent-dark)">${esc(fieldLabel)}</b> 脸码</div>
       </div>
     </div>
     <p style="font-size:13px;color:var(--text-light);text-align:center;line-height:1.7;">
@@ -1414,37 +1381,39 @@ function showDuplicateModal(newFace, dupFace, mode) {
   `;
   const cancelBtn = document.getElementById('dupCancelBtn');
   cancelBtn.textContent = mode === 'import' ? '跳过此条' : '取消保存';
+  // 导入模式且队列中还有更多项时，显示"全部替换"/"全部跳过"按钮
+  const showAll = mode === 'import' && pendingImports.length > 1;
+  document.getElementById('dupAllReplaceRow').style.display = showAll ? '' : 'none';
+  document.getElementById('dupAllSkipRow').style.display = showAll ? '' : 'none';
   document.getElementById('dupModal').classList.add('open');
 }
 
 function dupAction(action) {
   document.getElementById('dupModal').classList.remove('open');
   if (!pendingDup) return;
-  const { mode, newFace, dupFace } = pendingDup;
+  const { mode, newFace, dupInfo } = pendingDup;
   pendingDup = null;
   if (action === 'cancel' || action === 'skip') {
     // 取消/跳过：什么都不做
-  } else if (action === 'replace') {
+  } else if (action === 'replace' || action === 'replace_all') {
     // 替换：删除旧的，保存新的
-    faces = faces.filter(f => f.id !== dupFace.exist.id);
-    faces.unshift({ ...newFace, id: dupFace.exist.id });
-    render();
+    faces = faces.filter(f => f.id !== dupInfo.exist.id);
+    faces.unshift({ ...newFace, id: dupInfo.exist.id });
+    if (action === 'replace_all') importAutoAction = 'replace';
   }
   if (mode === 'save') {
     // 保存流程：操作完后继续保存或取消
     if (action === 'replace') {
+      render();
       closeAddModal();
       dbPut('faceList', faces).then(() => toast('已替换保存')).catch(() => toast('保存失败'));
     }
     // cancel 什么都不做，保持弹窗关闭、编辑器开着
   } else if (mode === 'import') {
     // 导入流程：继续处理队列
-    if (action === 'replace') {
-      pendingImports.shift(); // 已通过上面的 faces 操作加进去了
-    } else {
-      pendingImports.shift();
-      skippedDupCount++;
-    }
+    if (action === 'skip_all') importAutoAction = 'skip';
+    pendingImports.shift();
+    if (action === 'cancel' || action === 'skip' || action === 'skip_all') skippedDupCount++;
     processImportQueue();
   }
 }
@@ -1453,9 +1422,11 @@ function processImportQueue() {
   if (pendingImports.length === 0) {
     closeImportModal();
     hideImportProgress();
+    render();
     dbPut('faceList', faces).then(() => {
       const total = pendingImportsAll.length;
       const skipped = skippedDupCount;
+      importAutoAction = null;
       toast(`导入完成：新增 ${total - skipped} 条${skipped > 0 ? `，跳过 ${skipped} 条` : ''}`);
     }).catch(() => toast('导入保存失败'));
     return;
@@ -1467,7 +1438,21 @@ function processImportQueue() {
   const f = pendingImports[0];
   const allDups = findAllDuplicates(f, f.id);
   if (allDups.length > 0) {
-    showDuplicateModal(f, allDups[0], 'import');
+    if (importAutoAction === 'replace') {
+      // 自动替换：不弹窗，直接覆盖
+      faces = faces.filter(x => x.id !== allDups[0].exist.id);
+      faces.unshift({ ...f, id: allDups[0].exist.id });
+      pendingImports.shift();
+      processImportQueue();
+    } else if (importAutoAction === 'skip') {
+      // 自动跳过：不弹窗，直接跳过
+      pendingImports.shift();
+      skippedDupCount++;
+      processImportQueue();
+    } else {
+      // 弹窗让用户选择
+      showDuplicateModal(f, allDups[0], 'import');
+    }
   } else {
     faces.unshift(f);
     pendingImports.shift();
@@ -1478,7 +1463,7 @@ function processImportQueue() {
 document.querySelectorAll('.modal-ov').forEach(ov=>{ov.addEventListener('click',e=>{if(e.target===ov)ov.classList.remove('open');});});
 
 // PWA Service Worker
-const SW_VERSION = 12;
+const SW_VERSION = 13;
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js?v=' + SW_VERSION + '&t=' + Date.now()).catch(() => {});
 }
@@ -1705,6 +1690,6 @@ function jumpToFace(id) {
 
 init();
 </script>
-<div style="text-align:center;font-size:8px;color:#e0dce8;padding:8px 0 4px;line-height:1;">v2.3.06</div>
+<div style="text-align:center;font-size:8px;color:#e0dce8;padding:8px 0 4px;line-height:1;">v2.3.07</div>
 </body>
 </html>
