@@ -739,7 +739,7 @@
 <script>
 const DB_NAME = 'FaceCodeDB_v1';
 const STORE_KEY = 'faces';
-const PAGE_VERSION = 'v2.4.00'; // 版本标记，CDN缓存检测用
+const PAGE_VERSION = 'v2.4.01'; // 版本标记，CDN缓存检测用
 const FIXED = [{key:'cnBare',label:'国服无妆'},{key:'cnMakeup',label:'国服带妆'},{key:'sea',label:'新马服'}];
 const ASPECT = 6/9, OUT_W = 400;
 let faces = [], filter = {gender:'all',region:'all'};
@@ -1204,8 +1204,17 @@ async function checkCloudStatus(){
     if(res.status===401||res.status===403){el.textContent='Token 无效';return;}
     if(!res.ok)throw new Error('status '+res.status);
     const data=await res.json();
-    const parsed=JSON.parse(base64ToUtf8(data.content));
-    el.textContent=(parsed.faces?parsed.faces.length:0)+' 条';
+    // 尝试解析 content 获取条数（小文件可行）
+    if(data.content){
+      try{
+        const parsed=JSON.parse(base64ToUtf8(data.content));
+        el.textContent=(parsed.faces?parsed.faces.length:0)+' 条';
+        return;
+      }catch(e){}
+    }
+    // content 为空或解析失败（文件 >1MB 被 API 截断），显示文件大小
+    const kb=data.size/1024;
+    el.textContent=kb>1024?(kb/1024).toFixed(1)+' MB':kb.toFixed(1)+' KB';
   }catch(e){
     el.textContent='检查失败';
   }
@@ -1250,7 +1259,16 @@ async function cloudSyncDownload(){
     if(res.status===404){hideLoading();toast('云端暂无数据');return;}
     if(!res.ok)throw new Error('status '+res.status);
     const fileData=await res.json();
-    const data=JSON.parse(base64ToUtf8(fileData.content));
+    let jsonStr;
+    if(fileData.content&&fileData.content.trim()){
+      jsonStr=base64ToUtf8(fileData.content);
+    }else{
+      // 文件较大(>1MB)，content 被 API 截断，用 raw media type 获取完整内容
+      const rawRes=await fetch(GH_API,{headers:{'Authorization':`token ${token}`,'Accept':'application/vnd.github.raw'}});
+      if(!rawRes.ok)throw new Error('raw fetch failed');
+      jsonStr=await rawRes.text();
+    }
+    const data=JSON.parse(jsonStr);
     const cloudFaces=data.faces||[];
     hideLoading();
     // 确认覆盖
@@ -1655,7 +1673,7 @@ function processImportQueue() {
 document.querySelectorAll('.modal-ov').forEach(ov=>{ov.addEventListener('click',e=>{if(e.target===ov)ov.classList.remove('open');});});
 
 // PWA Service Worker
-const SW_VERSION = 15;
+const SW_VERSION = 16;
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js?v=' + SW_VERSION + '&t=' + Date.now()).catch(() => {});
 }
@@ -1882,6 +1900,6 @@ function jumpToFace(id) {
 
 init();
 </script>
-<div style="text-align:center;font-size:8px;color:#e0dce8;padding:8px 0 4px;line-height:1;">v2.4.00</div>
+<div style="text-align:center;font-size:8px;color:#e0dce8;padding:8px 0 4px;line-height:1;">v2.4.01</div>
 </body>
 </html>
