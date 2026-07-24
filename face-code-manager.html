@@ -517,6 +517,7 @@
   <button class="fab-menu-item" onclick="exportData()"><span>&#8657;</span> 导出数据</button>
   <button class="fab-menu-item" onclick="openImportModal()"><span>&#8659;</span> 导入数据</button>
   <button class="fab-menu-item" onclick="checkAllDuplicates()"><span>&#10004;</span> 内容查重</button>
+  <button class="fab-menu-item" onclick="openSyncModal()"><span>&#9729;</span> 云端同步</button>
 </div>
 
 <!-- Scroll Jump -->
@@ -717,6 +718,15 @@
   </div>
 </div>
 
+<!-- Cloud Sync Modal -->
+<div class="modal-ov" id="syncModal">
+  <div class="modal">
+    <div class="mh" onclick="closeSyncModal()"></div>
+    <div class="mtitle">&#9729; 云端同步</div>
+    <div id="syncContent"></div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <!-- Global Loading Overlay -->
@@ -729,7 +739,7 @@
 <script>
 const DB_NAME = 'FaceCodeDB_v1';
 const STORE_KEY = 'faces';
-const PAGE_VERSION = 'v2.3.08'; // 版本标记，CDN缓存检测用
+const PAGE_VERSION = 'v2.4.00'; // 版本标记，CDN缓存检测用
 const FIXED = [{key:'cnBare',label:'国服无妆'},{key:'cnMakeup',label:'国服带妆'},{key:'sea',label:'新马服'}];
 const ASPECT = 6/9, OUT_W = 400;
 let faces = [], filter = {gender:'all',region:'all'};
@@ -742,6 +752,7 @@ let pendingImports = [];
 let pendingImportsAll = [];
 let skippedDupCount = 0;
 let importAutoAction = null; // 'replace' | 'skip' | null — 导入时自动处理重复项的标志
+let pendingSyncConfirm = null; // 云端恢复确认回调
 
 // 批量模式
 let batchMode = false;
@@ -1107,6 +1118,185 @@ function doImport(mode){
 }
 function cancelImport(){hideImportProgress();closeImportModal();pendingImportData=null;pendingImports=[];pendingImportsAll=[];}
 
+// ── GitHub 云端同步 ──
+const GH_API = 'https://api.github.com/repos/Tan0709/face-code/contents/cloud-data/faces.json';
+function getSyncToken(){ return localStorage.getItem('gh_sync_token')||''; }
+function utf8ToBase64(str){
+  const bytes=new TextEncoder().encode(str);
+  let b='';for(let i=0;i<bytes.length;i++)b+=String.fromCharCode(bytes[i]);
+  return btoa(b);
+}
+function base64ToUtf8(b64){
+  const binary=atob(b64.replace(/\n/g,''));
+  const bytes=new Uint8Array(binary.length);
+  for(let i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);
+  return new TextDecoder().decode(bytes);
+}
+function openSyncModal(){
+  hideFabMenu();
+  renderSyncContent();
+  document.getElementById('syncModal').classList.add('open');
+}
+function closeSyncModal(){
+  document.getElementById('syncModal').classList.remove('open');
+}
+function renderSyncContent(){
+  const token=getSyncToken();
+  const el=document.getElementById('syncContent');
+  if(!token){
+    el.innerHTML=`
+      <p style="font-size:13px;color:var(--text-light);text-align:center;line-height:1.7;margin-bottom:14px;">
+        通过 GitHub 仓库同步你的脸码数据到云端<br>换设备也能用
+      </p>
+      <input type="password" id="syncTokenInput" placeholder="粘贴 GitHub Token"
+        style="width:100%;padding:12px 14px;border:1.5px solid var(--border);border-radius:12px;font-size:14px;box-sizing:border-box;margin-bottom:8px;background:var(--bg);font-family:inherit;">
+      <p style="font-size:11px;color:var(--text-lighter);line-height:1.6;margin-bottom:14px;">
+        Token 仅保存在本设备不会上传<br>
+        <a href="https://github.com/settings/tokens/new?scopes=repo" target="_blank" style="color:var(--accent);">&#8599; 点这里创建 Token</a>（需勾选 repo 权限）
+      </p>
+      <button class="btn btn-p" onclick="saveSyncToken()" style="width:100%">保存 Token</button>
+      <button class="btn btn-s" onclick="closeSyncModal()" style="width:100%;margin-top:8px;background:#F5F3F8;">取消</button>
+    `;
+    return;
+  }
+  const lastSync=localStorage.getItem('last_sync_time');
+  const lastSyncStr=lastSync?new Date(parseInt(lastSync)).toLocaleString('zh-CN'):'从未同步';
+  el.innerHTML=`
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 14px;background:var(--bg);border-radius:12px;margin-bottom:10px;">
+      <span style="font-size:13px;color:var(--text-light);">本地数据</span>
+      <span style="font-size:14px;font-weight:600;color:var(--text);">${faces.length} 条</span>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 14px;background:var(--bg);border-radius:12px;margin-bottom:10px;">
+      <span style="font-size:13px;color:var(--text-light);">云端数据</span>
+      <span style="font-size:14px;font-weight:600;color:var(--text);" id="cloudCount">检查中…</span>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 14px;background:var(--bg);border-radius:12px;margin-bottom:14px;">
+      <span style="font-size:13px;color:var(--text-light);">上次同步</span>
+      <span style="font-size:13px;color:var(--text);">${lastSyncStr}</span>
+    </div>
+    <button class="btn btn-p" onclick="cloudSyncUpload()" style="width:100%">&#8657; 上传到云端</button>
+    <p style="font-size:11px;color:var(--text-lighter);text-align:center;margin:6px 0 10px;">用本地数据覆盖云端</p>
+    <button class="btn btn-s" onclick="cloudSyncDownload()" style="width:100%">&#8659; 从云端恢复</button>
+    <p style="font-size:11px;color:var(--text-lighter);text-align:center;margin:6px 0 14px;">用云端数据覆盖本地</p>
+    <button class="btn btn-s" onclick="removeSyncToken()" style="width:100%;background:#F5F3F8;color:var(--text-light);">移除 Token</button>
+  `;
+  checkCloudStatus();
+}
+async function saveSyncToken(){
+  const val=document.getElementById('syncTokenInput').value.trim();
+  if(!val){toast('请输入 Token');return;}
+  localStorage.setItem('gh_sync_token',val);
+  toast('Token 已保存');
+  renderSyncContent();
+}
+function removeSyncToken(){
+  localStorage.removeItem('gh_sync_token');
+  toast('Token 已移除');
+  renderSyncContent();
+}
+async function checkCloudStatus(){
+  const token=getSyncToken();
+  const el=document.getElementById('cloudCount');
+  if(!el)return;
+  try{
+    const res=await fetch(GH_API,{headers:{'Authorization':`token ${token}`,'Accept':'application/vnd.github.v3+json'}});
+    if(res.status===404){el.textContent='无数据';return;}
+    if(res.status===401||res.status===403){el.textContent='Token 无效';return;}
+    if(!res.ok)throw new Error('status '+res.status);
+    const data=await res.json();
+    const parsed=JSON.parse(base64ToUtf8(data.content));
+    el.textContent=(parsed.faces?parsed.faces.length:0)+' 条';
+  }catch(e){
+    el.textContent='检查失败';
+  }
+}
+async function cloudSyncUpload(){
+  const token=getSyncToken();
+  if(!token){toast('请先设置 Token');return;}
+  if(faces.length===0){toast('本地没有数据');return;}
+  showLoading('正在上传…','正在同步数据到云端');
+  try{
+    let sha=null;
+    try{
+      const getRes=await fetch(GH_API,{headers:{'Authorization':`token ${token}`,'Accept':'application/vnd.github.v3+json'}});
+      if(getRes.ok){const f=await getRes.json();sha=f.sha;}
+    }catch(e){}
+    const content=utf8ToBase64(JSON.stringify({faces,timestamp:Date.now(),version:PAGE_VERSION}));
+    const res=await fetch(GH_API,{
+      method:'PUT',
+      headers:{'Authorization':`token ${token}`,'Accept':'application/vnd.github.v3+json','Content-Type':'application/json'},
+      body:JSON.stringify({message:`cloud sync: ${new Date().toLocaleString('zh-CN')}`,content,...(sha?{sha}:{})})
+    });
+    hideLoading();
+    if(res.ok){
+      localStorage.setItem('last_sync_time',Date.now().toString());
+      toast('已上传到云端');
+      renderSyncContent();
+    }else{
+      const err=await res.json().catch(()=>({}));
+      toast('上传失败: '+(err.message||res.status));
+    }
+  }catch(e){
+    hideLoading();
+    toast('网络错误，上传失败');
+  }
+}
+async function cloudSyncDownload(){
+  const token=getSyncToken();
+  if(!token){toast('请先设置 Token');return;}
+  showLoading('正在下载…','正在从云端获取数据');
+  try{
+    const res=await fetch(GH_API,{headers:{'Authorization':`token ${token}`,'Accept':'application/vnd.github.v3+json'}});
+    if(res.status===404){hideLoading();toast('云端暂无数据');return;}
+    if(!res.ok)throw new Error('status '+res.status);
+    const fileData=await res.json();
+    const data=JSON.parse(base64ToUtf8(fileData.content));
+    const cloudFaces=data.faces||[];
+    hideLoading();
+    // 确认覆盖
+    if(cloudFaces.length>0&&faces.length>0){
+      showSyncConfirm(cloudFaces.length,faces.length,()=>{
+        faces=cloudFaces;
+        render();
+        dbPut('faceList',faces);
+        if(data.timestamp)localStorage.setItem('last_sync_time',data.timestamp.toString());
+        toast(`已从云端恢复 ${faces.length} 条`);
+        renderSyncContent();
+      });
+    }else{
+      faces=cloudFaces;
+      render();
+      dbPut('faceList',faces);
+      if(data.timestamp)localStorage.setItem('last_sync_time',data.timestamp.toString());
+      toast(`已从云端恢复 ${faces.length} 条`);
+      renderSyncContent();
+    }
+  }catch(e){
+    hideLoading();
+    toast('网络错误，下载失败');
+  }
+}
+function showSyncConfirm(cloudN,localN,onConfirm){
+  pendingSyncConfirm=onConfirm;
+  const el=document.getElementById('syncContent');
+  el.innerHTML=`
+    <div style="text-align:center;padding:20px 0;">
+      <div style="font-size:40px;margin-bottom:12px;opacity:0.5;">&#9888;</div>
+      <p style="font-size:14px;color:var(--text);line-height:1.8;margin-bottom:6px;">
+        云端有 <b>${cloudN}</b> 条数据<br>本地有 <b>${localN}</b> 条数据
+      </p>
+      <p style="font-size:12px;color:var(--text-light);line-height:1.6;margin-bottom:18px;">
+        恢复后本地数据将被云端数据完全覆盖<br>此操作不可撤销
+      </p>
+      <button class="btn btn-p" onclick="confirmSyncRestore()" style="width:100%;margin-bottom:8px;">确定覆盖</button>
+      <button class="btn btn-s" onclick="renderSyncContent()" style="width:100%;background:#F5F3F8;">取消</button>
+    </div>
+  `;
+}
+function confirmSyncRestore(){
+  if(pendingSyncConfirm){pendingSyncConfirm();pendingSyncConfirm=null;}
+}
+
 function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2200);}
 function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 
@@ -1465,7 +1655,7 @@ function processImportQueue() {
 document.querySelectorAll('.modal-ov').forEach(ov=>{ov.addEventListener('click',e=>{if(e.target===ov)ov.classList.remove('open');});});
 
 // PWA Service Worker
-const SW_VERSION = 14;
+const SW_VERSION = 15;
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js?v=' + SW_VERSION + '&t=' + Date.now()).catch(() => {});
 }
@@ -1692,6 +1882,6 @@ function jumpToFace(id) {
 
 init();
 </script>
-<div style="text-align:center;font-size:8px;color:#e0dce8;padding:8px 0 4px;line-height:1;">v2.3.08</div>
+<div style="text-align:center;font-size:8px;color:#e0dce8;padding:8px 0 4px;line-height:1;">v2.4.00</div>
 </body>
 </html>
