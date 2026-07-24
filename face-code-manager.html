@@ -739,7 +739,7 @@
 <script>
 const DB_NAME = 'FaceCodeDB_v1';
 const STORE_KEY = 'faces';
-const PAGE_VERSION = 'v2.4.01'; // 版本标记，CDN缓存检测用
+const PAGE_VERSION = 'v2.4.02'; // 版本标记，CDN缓存检测用
 const FIXED = [{key:'cnBare',label:'国服无妆'},{key:'cnMakeup',label:'国服带妆'},{key:'sea',label:'新马服'}];
 const ASPECT = 6/9, OUT_W = 400;
 let faces = [], filter = {gender:'all',region:'all'};
@@ -1255,17 +1255,20 @@ async function cloudSyncDownload(){
   if(!token){toast('请先设置 Token');return;}
   showLoading('正在下载…','正在从云端获取数据');
   try{
-    const res=await fetch(GH_API,{headers:{'Authorization':`token ${token}`,'Accept':'application/vnd.github.v3+json'}});
-    if(res.status===404){hideLoading();toast('云端暂无数据');return;}
-    if(!res.ok)throw new Error('status '+res.status);
-    const fileData=await res.json();
+    // 先用 API 检查文件是否存在
+    const checkRes=await fetch(GH_API,{headers:{'Authorization':`token ${token}`,'Accept':'application/vnd.github.v3+json'}});
+    if(checkRes.status===404){hideLoading();toast('云端暂无数据');return;}
+    if(!checkRes.ok)throw new Error('status '+checkRes.status);
+    const fileData=await checkRes.json();
     let jsonStr;
     if(fileData.content&&fileData.content.trim()){
+      // 小文件(≤1MB)：直接从 API 返回的 content 解码
       jsonStr=base64ToUtf8(fileData.content);
     }else{
-      // 文件较大(>1MB)，content 被 API 截断，用 raw media type 获取完整内容
-      const rawRes=await fetch(GH_API,{headers:{'Authorization':`token ${token}`,'Accept':'application/vnd.github.raw'}});
-      if(!rawRes.ok)throw new Error('raw fetch failed');
+      // 大文件(>1MB)：API 会截断 content，改用 raw.githubusercontent.com 直接下载
+      const rawUrl='https://raw.githubusercontent.com/Tan0709/face-code/main/cloud-data/faces.json?t='+Date.now();
+      const rawRes=await fetch(rawUrl);
+      if(!rawRes.ok)throw new Error('raw download failed: '+rawRes.status);
       jsonStr=await rawRes.text();
     }
     const data=JSON.parse(jsonStr);
@@ -1673,7 +1676,7 @@ function processImportQueue() {
 document.querySelectorAll('.modal-ov').forEach(ov=>{ov.addEventListener('click',e=>{if(e.target===ov)ov.classList.remove('open');});});
 
 // PWA Service Worker
-const SW_VERSION = 16;
+const SW_VERSION = 17;
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js?v=' + SW_VERSION + '&t=' + Date.now()).catch(() => {});
 }
@@ -1900,6 +1903,6 @@ function jumpToFace(id) {
 
 init();
 </script>
-<div style="text-align:center;font-size:8px;color:#e0dce8;padding:8px 0 4px;line-height:1;">v2.4.01</div>
+<div style="text-align:center;font-size:8px;color:#e0dce8;padding:8px 0 4px;line-height:1;">v2.4.02</div>
 </body>
 </html>
