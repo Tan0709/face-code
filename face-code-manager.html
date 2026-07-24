@@ -656,6 +656,7 @@
 <script>
 const DB_NAME = 'FaceCodeDB_v1';
 const STORE_KEY = 'faces';
+const PAGE_VERSION = 'v2.3.03'; // 版本标记，CDN缓存检测用
 const FIXED = [{key:'cnBare',label:'国服无妆'},{key:'cnMakeup',label:'国服带妆'},{key:'sea',label:'新马服'}];
 const ASPECT = 6/9, OUT_W = 400;
 let faces = [], filter = {gender:'all',region:'all'};
@@ -804,35 +805,67 @@ function renderCustomFields() {
 document.getElementById('uploadArea').addEventListener('click',e=>{if(e.target.tagName!=='INPUT')document.getElementById('imgInput').click();});
 function startCrop(file){
   if(!file)return;
-  showLoading('正在读取图片…', '');
+  // 文件大小检查（超过 30MB 可能导致内存问题）
+  if(file.size>30*1024*1024){toast('图片太大，请选择 30MB 以内的图片');return;}
+  showLoading('正在读取图片…', file.name);
   const r=new FileReader();
   r.onload=e=>{
     const img=new Image();
-    img.onload=()=>{hideLoading();openCropUI(img);};
-    img.onerror=()=>{hideLoading();toast('图片读取失败');};
+    img.onload=()=>{
+      hideLoading();
+      // 图片尺寸检查
+      if(img.naturalWidth<10||img.naturalHeight<10){
+        toast('图片尺寸无效，请重新选择');
+        document.getElementById('imgInput').value='';
+        return;
+      }
+      openCropUI(img);
+    };
+    img.onerror=()=>{
+      hideLoading();
+      toast('图片读取失败，请换一张图片重试');
+      document.getElementById('imgInput').value='';
+    };
     img.src=e.target.result;
   };
-  r.onerror=()=>{hideLoading();toast('文件读取失败');};
+  r.onerror=()=>{
+    hideLoading();
+    toast('文件读取失败，请换一张图片重试');
+    document.getElementById('imgInput').value='';
+  };
   r.readAsDataURL(file);
 }
 function openCropUI(img){
   C.img=img;C.natW=img.naturalWidth;C.natH=img.naturalHeight;
-  const stage=document.getElementById('cropStage');
-  const sw=stage.clientWidth||window.innerWidth;
-  const sh=stage.clientHeight||(window.innerHeight*0.65);
-  const fw=sw,fh=fw/ASPECT;
-  const fe=document.getElementById('cropFrame');
-  fe.style.width=fw+'px';fe.style.height=fh+'px';
-  C.fw=fw;C.fh=fh;
-  const ia=C.natW/C.natH,fa=fw/fh;
-  let dw,dh;if(ia>fa){dh=fh;dw=dh*ia;}else{dw=fw;dh=dw/ia;}
-  C.dw=dw;C.dh=dh;C.scale=dw/C.natW;
-  C.x=(fw-dw)/2;C.y=(fh-dh)/2;
-  C.minScale=Math.max(fw/C.natW,fh/C.natH);
-  const ci=document.getElementById('cropImg');
-  ci.style.width=C.natW+'px';ci.style.height=C.natH+'px';ci.src=img.src;
-  applyTransform();bindGestures();
+  // 先打开 overlay，让 crop-stage 获得实际尺寸，再读取 clientWidth
   document.getElementById('cropOverlay').classList.add('open');
+  // 读取尺寸前确保 layout 已完成，使用 requestAnimationFrame 等待下一帧
+  requestAnimationFrame(()=>{
+    const stage=document.getElementById('cropStage');
+    // 强制重新计算布局
+    const _w=stage.offsetWidth;
+    const _h=stage.offsetHeight;
+    const sw=stage.clientWidth||_w||window.innerWidth;
+    const sh=stage.clientHeight||_h||(window.innerHeight*0.65);
+    if(sw<10||sh<10){
+      document.getElementById('cropOverlay').classList.remove('open');
+      toast('裁剪界面初始化失败，请重试');
+      document.getElementById('imgInput').value='';
+      return;
+    }
+    const fw=sw,fh=fw/ASPECT;
+    const fe=document.getElementById('cropFrame');
+    fe.style.width=fw+'px';fe.style.height=fh+'px';
+    C.fw=fw;C.fh=fh;
+    const ia=C.natW/C.natH,fa=fw/fh;
+    let dw,dh;if(ia>fa){dh=fh;dw=dh*ia;}else{dw=fw;dh=dw/ia;}
+    C.dw=dw;C.dh=dh;C.scale=dw/C.natW;
+    C.x=(fw-dw)/2;C.y=(fh-dh)/2;
+    C.minScale=Math.max(fw/C.natW,fh/C.natH);
+    const ci=document.getElementById('cropImg');
+    ci.style.width=C.natW+'px';ci.style.height=C.natH+'px';ci.src=img.src;
+    applyTransform();bindGestures();
+  });
 }
 function applyTransform(){document.getElementById('cropImg').style.transform=`translate(${C.x}px,${C.y}px) scale(${C.scale})`;}
 
@@ -1298,13 +1331,20 @@ function processImportQueue() {
 document.querySelectorAll('.modal-ov').forEach(ov=>{ov.addEventListener('click',e=>{if(e.target===ov)ov.classList.remove('open');});});
 
 // PWA Service Worker
-const SW_VERSION = 7;
+const SW_VERSION = 9;
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('sw.js?v=' + SW_VERSION).catch(() => {});
+  navigator.serviceWorker.register('sw.js?v=' + SW_VERSION + '&t=' + Date.now()).catch(() => {});
 }
+
+// 监听 Service Worker 发来的刷新指令
+window.addEventListener('message', e => {
+  if (e.data && e.data.type === 'RELOAD_PAGE') {
+    window.location.reload(true);
+  }
+});
 
 init();
 </script>
-<div style="text-align:center;font-size:8px;color:#e0dce8;padding:8px 0 4px;line-height:1;">v2.3.01</div>
+<div style="text-align:center;font-size:8px;color:#e0dce8;padding:8px 0 4px;line-height:1;">v2.3.03</div>
 </body>
 </html>
