@@ -735,7 +735,7 @@
 <script>
 const DB_NAME = 'FaceCodeDB_v1';
 const STORE_KEY = 'faces';
-const PAGE_VERSION = 'v2.3.05'; // 版本标记，CDN缓存检测用
+const PAGE_VERSION = 'v2.3.06'; // 版本标记，CDN缓存检测用
 const FIXED = [{key:'cnBare',label:'国服无妆'},{key:'cnMakeup',label:'国服带妆'},{key:'sea',label:'新马服'}];
 const ASPECT = 6/9, OUT_W = 400;
 let faces = [], filter = {gender:'all',region:'all'};
@@ -1025,16 +1025,16 @@ function saveFace(){
   
   // 新增时严格查重：内容字段（国服无妆/带妆/新马服/自定义）不允许与已有脸码重复
   if (!editingId) {
-    const strictDup = strictCheckDuplicate(data);
-    if (strictDup) {
-      openStrictDupModal(strictDup, data);
+    const allDups = findAllDuplicates(data);
+    if (allDups.length > 0) {
+      openStrictDupModal(allDups[0], data);
       return;
     }
   }
 
-  const dup=findDuplicate(data,editingId);
-  if(dup){
-    showDuplicateModal(data,dup,'save');
+  const dup=findAllDuplicates(data,editingId);
+  if(dup.length > 0){
+    showDuplicateModal(data,dup[0],'save');
     return;
   }
   if(editingId){const i=faces.findIndex(x=>x.id===editingId);if(i!==-1)faces[i]=data;}
@@ -1301,49 +1301,8 @@ function batchExport() {
   toast(`已导出 ${toExport.length} 条脸码`);
 }
 
-// 严格查重：新增时内容字段完全禁止重复（直接报错）
-function strictCheckDuplicate(newFace) {
-  const newCodes = newFace.codes || {};
-  const newCustom = newFace.customFields || [];
-  const ALL_KEYS = ['cnBare', 'cnMakeup', 'sea'];
-
-  // 收集所有非空字段
-  const newVals = [];
-  ALL_KEYS.forEach(k => {
-    const v = (newCodes[k] || '').trim();
-    if (v) newVals.push({ key: k, val: v });
-  });
-  newCustom.forEach(c => {
-    const v = (c.value || '').trim();
-    if (v) newVals.push({ key: 'cust_' + c.id, val: v });
-  });
-  if (newVals.length === 0) return null; // 没填任何内容，不查重
-
-  for (const exist of faces) {
-    const existCodes = exist.codes || {};
-    const existCustom = exist.customFields || [];
-    for (const { key, val } of newVals) {
-      let existVal = '';
-      if (key.startsWith('cust_')) {
-        const cf = existCustom.find(c => 'cust_' + c.id === key);
-        if (cf) existVal = (cf.value || '').trim();
-      } else {
-        existVal = (existCodes[key] || '').trim();
-      }
-      if (existVal === val) {
-        const label = key.startsWith('cust_') ? getCustomFieldLabel(key.replace('cust_', '')) : (FIXED.find(fx => fx.key === key) || { label: key }).label;
-        return { exist, matchedKey: key, label };
-      }
-    }
-  }
-  return null;
-}
-
-// 严格重复弹窗（新增时，不给替换选项）
-let pendingStrictDup = null;
-
+// 严格重复弹窗（新增时，禁止重复——不显示替换按钮）
 function openStrictDupModal(dupInfo, newFace) {
-  pendingStrictDup = { newFace, dupInfo };
   const { exist, label } = dupInfo;
   const imgHtml = exist.img
     ? `<img src="${exist.img}" style="width:56px;height:75px;object-fit:cover;border-radius:10px;flex-shrink:0;">`
@@ -1363,7 +1322,6 @@ function openStrictDupModal(dupInfo, newFace) {
 
 function closeStrictDupModal() {
   document.getElementById('strictDupModal').classList.remove('open');
-  pendingStrictDup = null;
 }
 
 // 查找重复：返回第一个发现重复的已有脸码，及其匹配字段
@@ -1400,7 +1358,43 @@ function findDuplicate(newFace, excludeId = null) {
   return null;
 }
 
-// 显示重复弹窗
+// ── 重复检测 ──
+// 查找所有重复：返回 [{exist, matchedKey, label}] 列表
+// 旧版 findDuplicate 已废弃（2008-2026），改用 findAllDuplicates
+function findAllDuplicates(newFace, excludeId = null) {
+  const newCodes = newFace.codes || {};
+  const newCustom = newFace.customFields || [];
+  const toCheck = [];
+  for (const [k, v] of Object.entries(newCodes)) {
+    if (v && v.trim()) toCheck.push({ key: k, val: v.trim(), isFixed: true });
+  }
+  for (const c of newCustom) {
+    if (c.value && c.value.trim()) toCheck.push({ key: 'cust_' + c.id, val: c.value.trim(), isFixed: false, label: c.label });
+  }
+  if (toCheck.length === 0) return [];
+
+  const results = [];
+  for (const exist of faces) {
+    if (exist.id === excludeId) continue;
+    const existCodes = exist.codes || {};
+    const existCustom = exist.customFields || [];
+    for (const { key, val, isFixed, label } of toCheck) {
+      let existVal = '';
+      if (isFixed) {
+        existVal = existCodes[key] || '';
+      } else {
+        const f = existCustom.find(c => 'cust_' + c.id === key);
+        if (f) existVal = f.value || '';
+      }
+      if (existVal.trim() === val) {
+        results.push({ exist, matchedKey: key, isFixed, label: label || (FIXED.find(fx => fx.key === key) || { label: key }).label });
+      }
+    }
+  }
+  return results;
+}
+
+// 显示重复弹窗（单条保存时显示第一条匹配）
 function showDuplicateModal(newFace, dupFace, mode) {
   pendingDup = { mode, newFace, dupFace };
   const imgHtml = dupFace.img
@@ -1471,10 +1465,9 @@ function processImportQueue() {
   updateImportProgress(Math.round((done / total) * 100));
 
   const f = pendingImports[0];
-  const dup = findDuplicate(f, f.id);
-  if (dup) {
-    dup.exist = dup.exist; // attach dup info
-    showDuplicateModal(f, dup, 'import');
+  const allDups = findAllDuplicates(f, f.id);
+  if (allDups.length > 0) {
+    showDuplicateModal(f, allDups[0], 'import');
   } else {
     faces.unshift(f);
     pendingImports.shift();
@@ -1485,7 +1478,7 @@ function processImportQueue() {
 document.querySelectorAll('.modal-ov').forEach(ov=>{ov.addEventListener('click',e=>{if(e.target===ov)ov.classList.remove('open');});});
 
 // PWA Service Worker
-const SW_VERSION = 11;
+const SW_VERSION = 12;
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js?v=' + SW_VERSION + '&t=' + Date.now()).catch(() => {});
 }
@@ -1559,6 +1552,7 @@ function checkAllDuplicates() {
     });
   });
 
+  checkAllDuplicates.__lastDups = dups;
   if (dups.length === 0) {
     openDupListModal([]);
   } else {
@@ -1604,11 +1598,11 @@ function openDupListModal(dups) {
     body.innerHTML = dups.map(d => `
       <div style="margin-bottom:14px;padding:12px 14px;background:var(--bg);border-radius:14px;">
         <div style="font-size:12px;color:var(--accent-dark);font-weight:500;margin-bottom:6px;">${esc(d.label)} 重复 (${d.faces.length}条)</div>
-        ${d.faces.map(f => {
+        ${d.faces.map((f, rowIdx) => {
           const sel = dupListSelected.has(f.id);
           return `
-          <div style="display:flex;align-items:center;gap:10px;padding:6px 0;cursor:pointer;" data-dupid="${f.id}" onclick="toggleDupSelect('${f.id}', event)">
-            <div style="width:20px;height:20px;border-radius:50%;border:1.5px solid ${sel?'var(--accent)':'var(--border), #D0C8E0'};background:${sel?'var(--accent)':'var(--card)'};display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all 0.15s;${sel?'box-shadow:0 1px 4px rgba(196,170,220,0.4);':''}">
+          <div style="display:flex;align-items:center;gap:10px;padding:6px 0;cursor:pointer;" data-dupid="${f.id}" data-dupidx="${f.id}_${rowIdx}" onclick="toggleDupSelect('${f.id}', '${f.id}_${rowIdx}', event)">
+            <div id="dupchk_${f.id}_${rowIdx}" style="width:20px;height:20px;border-radius:50%;border:1.5px solid ${sel?'var(--accent)':'var(--border)'};background:${sel?'var(--accent)':'var(--card)'};display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all 0.15s;">
               ${sel ? '<div style="width:10px;height:6px;background-image:url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2710%27 height=%276%27 viewBox=%270 0 10 6%27%3E%3Cpath d=%27M1 3l3 3 5-6%27 stroke=%27%23fff%27 stroke-width=%271.8%27 fill=%27none%27 stroke-linecap=%27round%27/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:center;"></div>' : ''}
             </div>
             <div style="width:32px;height:43px;border-radius:7px;overflow:hidden;flex-shrink:0;background:#F0F0F0;">
@@ -1630,22 +1624,21 @@ function openDupListModal(dups) {
   document.getElementById('dupListModal').classList.add('open');
 }
 
-function toggleDupSelect(id, e) {
+function toggleDupSelect(id, idx, e) {
   e.stopPropagation();
   if (dupListSelected.has(id)) {
     dupListSelected.delete(id);
   } else {
     dupListSelected.add(id);
   }
-  updateDupCheckUI(id);
+  updateDupCheckUI(id, idx);
   updateDupActionBar();
 }
 
-function updateDupCheckUI(id) {
-  const row = document.querySelector(`[data-dupid="${id}"]`);
-  if (!row) return;
+function updateDupCheckUI(id, idx) {
+  const circle = document.getElementById('dupchk_' + id + '_' + idx);
+  if (!circle) return;
   const sel = dupListSelected.has(id);
-  const circle = row.querySelector('div:first-child');
   circle.style.borderColor = sel ? 'var(--accent)' : 'var(--border)';
   circle.style.background = sel ? 'var(--accent)' : 'var(--card)';
   circle.innerHTML = sel ? '<div style="width:10px;height:6px;background-image:url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2710%27 height=%276%27 viewBox=%270 0 10 6%27%3E%3Cpath d=%27M1 3l3 3 5-6%27 stroke=%27%23fff%27 stroke-width=%271.8%27 fill=%27none%27 stroke-linecap=%27round%27/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:center;"></div>' : '';
@@ -1659,8 +1652,9 @@ function selectAllDup() {
     dupListAllIds.forEach(id => dupListSelected.add(id));
     document.getElementById('dupSelectAllBtn').textContent = '取消全选';
   }
-  dupListAllIds.forEach(id => updateDupCheckUI(id));
-  updateDupActionBar();
+  // Re-render to update all check states
+  document.getElementById('dupListModal').classList.remove('open');
+  checkAllDuplicates.__lastDups && openDupListModal(checkAllDuplicates.__lastDups);
 }
 
 function updateDupActionBar() {
@@ -1711,6 +1705,6 @@ function jumpToFace(id) {
 
 init();
 </script>
-<div style="text-align:center;font-size:8px;color:#e0dce8;padding:8px 0 4px;line-height:1;">v2.3.05</div>
+<div style="text-align:center;font-size:8px;color:#e0dce8;padding:8px 0 4px;line-height:1;">v2.3.06</div>
 </body>
 </html>
