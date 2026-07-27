@@ -539,7 +539,7 @@
         <img id="uploadPreview" style="display:none">
         <div id="uploadHint">
           <div class="up-hint-ic">&#9634;</div>
-          <div class="up-hint">点击上传立绘</div>
+          <div class="up-hint">点击上传 / 粘贴 / 拖入图片</div>
         </div>
       </div>
     </div>
@@ -618,7 +618,7 @@
     </div>
   </div>
   <div class="crop-foot">
-    <div class="crop-foot-hint"><b>单指拖动</b> 移动图片 &nbsp;&middot;&nbsp; <b>双指缩放</b> 调整大小</div>
+    <div class="crop-foot-hint" id="cropFootHint"><b>单指拖动</b> 移动图片 &nbsp;&middot;&nbsp; <b>双指缩放</b> 调整大小</div>
   </div>
 </div>
 
@@ -739,7 +739,7 @@
 <script>
 const DB_NAME = 'FaceCodeDB_v1';
 const STORE_KEY = 'faces';
-const PAGE_VERSION = 'v2.4.02'; // 版本标记，CDN缓存检测用
+const PAGE_VERSION = 'v2.4.03'; // 版本标记，CDN缓存检测用
 const FIXED = [{key:'cnBare',label:'国服无妆'},{key:'cnMakeup',label:'国服带妆'},{key:'sea',label:'新马服'}];
 const ASPECT = 6/9, OUT_W = 400;
 let faces = [], filter = {gender:'all',region:'all'};
@@ -888,6 +888,25 @@ function renderCustomFields() {
 
 // Upload & Crop
 document.getElementById('uploadArea').addEventListener('click',e=>{if(e.target.tagName!=='INPUT')document.getElementById('imgInput').click();});
+// 粘贴上传：在添加/编辑弹窗内 Ctrl+V 粘贴图片
+document.getElementById('addModal').addEventListener('paste',e=>{
+  if(!e.clipboardData||!e.clipboardData.items)return;
+  for(const item of e.clipboardData.items){
+    if(item.type.startsWith('image/')){
+      const file=item.getAsFile();
+      if(file){e.preventDefault();startCrop(file);return;}
+    }
+  }
+});
+// 拖放上传：将图片文件拖到上传区域
+const _ua=document.getElementById('uploadArea');
+_ua.addEventListener('dragover',e=>{e.preventDefault();_ua.style.borderColor='var(--accent)';_ua.style.background='#FAF8FF';});
+_ua.addEventListener('dragleave',e=>{_ua.style.borderColor='';_ua.style.background='';});
+_ua.addEventListener('drop',e=>{
+  e.preventDefault();_ua.style.borderColor='';_ua.style.background='';
+  const file=e.dataTransfer.files[0];
+  if(file)startCrop(file);
+});
 function startCrop(file){
   if(!file)return;
   // 文件大小检查（超过 30MB 可能导致内存问题）
@@ -938,9 +957,10 @@ function openCropUI(img){
       document.getElementById('imgInput').value='';
       return;
     }
-    const fw=sw,fh=fw/ASPECT;
+    const fw=Math.min(sw,360),fh=fw/ASPECT;
     const fe=document.getElementById('cropFrame');
     fe.style.width=fw+'px';fe.style.height=fh+'px';
+    fe.style.left=((sw-fw)/2)+'px';fe.style.top=((sh-fh)/2)+'px';
     C.fw=fw;C.fh=fh;
     const ia=C.natW/C.natH,fa=fw/fh;
     let dw,dh;if(ia>fa){dh=fh;dw=dh*ia;}else{dw=fw;dh=dw/ia;}
@@ -956,10 +976,29 @@ function applyTransform(){document.getElementById('cropImg').style.transform=`tr
 
 let drag=null,lastDist=0,lastMidX=0,lastMidY=0,lastPinchScale=1;
 function bindGestures(){
+  // 根据设备显示不同操作提示
+  const isTouch='ontouchstart' in window||navigator.maxTouchPoints>0;
+  const hintEl=document.getElementById('cropFootHint');
+  if(hintEl)hintEl.innerHTML=isTouch
+    ?'<b>单指拖动</b> 移动图片 &nbsp;&middot;&nbsp; <b>双指缩放</b> 调整大小'
+    :'<b>鼠标拖动</b> 移动图片 &nbsp;&middot;&nbsp; <b>滚轮缩放</b> 调整大小';
+  C.maxScale=C.minScale*20;
   const s=document.getElementById('cropStage');
   s.addEventListener('mousedown',e=>{drag={x:e.clientX,y:e.clientY,ix:C.x,iy:C.y};e.preventDefault();},{passive:false});
   window.addEventListener('mousemove',e=>{if(!drag)return;C.x=drag.ix+(e.clientX-drag.x);C.y=drag.iy+(e.clientY-drag.y);constrain();applyTransform();e.preventDefault();},{passive:false});
   window.addEventListener('mouseup',()=>drag=null);
+  // PC 滚轮缩放：以鼠标位置为中心缩放
+  s.addEventListener('wheel',e=>{
+    e.preventDefault();
+    const fe=document.getElementById('cropFrame');
+    const rect=fe.getBoundingClientRect();
+    const mx=e.clientX-rect.left,my=e.clientY-rect.top;
+    const delta=e.deltaY>0?0.92:1.08;
+    const ns=Math.max(C.minScale,Math.min(C.scale*delta,C.maxScale));
+    if(ns===C.scale)return;
+    const sf=ns/C.scale;
+    C.x=mx-(mx-C.x)*sf;C.y=my-(my-C.y)*sf;C.scale=ns;constrain();applyTransform();
+  },{passive:false});
   s.addEventListener('touchstart',e=>{
     if(e.touches.length===1)drag={x:e.touches[0].clientX,y:e.touches[0].clientY,ix:C.x,iy:C.y};
     else if(e.touches.length===2){drag=null;lastDist=getDist(e.touches);lastMidX=getMidX(e.touches);lastMidY=getMidY(e.touches);lastPinchScale=C.scale;}
@@ -969,7 +1008,7 @@ function bindGestures(){
     if(e.touches.length===1&&drag){C.x=drag.ix+(e.touches[0].clientX-drag.x);C.y=drag.iy+(e.touches[0].clientY-drag.y);constrain();applyTransform();}
     else if(e.touches.length===2){
       const d=getDist(e.touches),mx=getMidX(e.touches),my=getMidY(e.touches);
-      const ns=Math.max(C.minScale,lastPinchScale*(d/lastDist));const sf=ns/C.scale;
+      const ns=Math.max(C.minScale,Math.min(lastPinchScale*(d/lastDist),C.maxScale));const sf=ns/C.scale;
       C.x=mx-(mx-C.x)*sf;C.y=my-(my-C.y)*sf;C.scale=ns;constrain();applyTransform();
       lastDist=d;lastMidX=mx;lastMidY=my;lastPinchScale=ns;
     }
@@ -1676,7 +1715,7 @@ function processImportQueue() {
 document.querySelectorAll('.modal-ov').forEach(ov=>{ov.addEventListener('click',e=>{if(e.target===ov)ov.classList.remove('open');});});
 
 // PWA Service Worker
-const SW_VERSION = 17;
+const SW_VERSION = 18;
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js?v=' + SW_VERSION + '&t=' + Date.now()).catch(() => {});
 }
@@ -1903,6 +1942,6 @@ function jumpToFace(id) {
 
 init();
 </script>
-<div style="text-align:center;font-size:8px;color:#e0dce8;padding:8px 0 4px;line-height:1;">v2.4.02</div>
+<div style="text-align:center;font-size:8px;color:#e0dce8;padding:8px 0 4px;line-height:1;">v2.4.03</div>
 </body>
 </html>
