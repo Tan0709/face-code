@@ -739,7 +739,7 @@
 <script>
 const DB_NAME = 'FaceCodeDB_v1';
 const STORE_KEY = 'faces';
-const PAGE_VERSION = 'v2.4.04'; // 版本标记，CDN缓存检测用
+const PAGE_VERSION = 'v2.4.05'; // 版本标记，CDN缓存检测用
 const FIXED = [{key:'cnBare',label:'国服无妆'},{key:'cnMakeup',label:'国服带妆'},{key:'sea',label:'新马服'}];
 const ASPECT = 6/9, OUT_W = 400;
 let faces = [], filter = {gender:'all',region:'all'};
@@ -1159,6 +1159,7 @@ function cancelImport(){hideImportProgress();closeImportModal();pendingImportDat
 
 // ── GitHub 云端同步 ──
 const GH_API = 'https://api.github.com/repos/Tan0709/face-code/contents/cloud-data/faces.json';
+const GH_RAW = 'https://raw.githubusercontent.com/Tan0709/face-code/main/cloud-data/faces.json';
 function getSyncToken(){ return localStorage.getItem('gh_sync_token')||''; }
 function utf8ToBase64(str){
   const bytes=new TextEncoder().encode(str);
@@ -1214,9 +1215,9 @@ function renderSyncContent(){
       <span style="font-size:13px;color:var(--text);">${lastSyncStr}</span>
     </div>
     <button class="btn btn-p" onclick="cloudSyncUpload()" style="width:100%">&#8657; 上传到云端</button>
-    <p style="font-size:11px;color:var(--text-lighter);text-align:center;margin:6px 0 10px;">用本地数据覆盖云端</p>
+    <p style="font-size:11px;color:var(--text-lighter);text-align:center;margin:6px 0 10px;">仅上传本地新增，云端原有数据保留</p>
     <button class="btn btn-s" onclick="cloudSyncDownload()" style="width:100%">&#8659; 从云端恢复</button>
-    <p style="font-size:11px;color:var(--text-lighter);text-align:center;margin:6px 0 14px;">用云端数据覆盖本地</p>
+    <p style="font-size:11px;color:var(--text-lighter);text-align:center;margin:6px 0 14px;">拉取云端数据，可选覆盖或仅导入新增</p>
     <button class="btn btn-s" onclick="removeSyncToken()" style="width:100%;background:#F5F3F8;color:var(--text-light);">移除 Token</button>
   `;
   checkCloudStatus();
@@ -1262,23 +1263,49 @@ async function cloudSyncUpload(){
   const token=getSyncToken();
   if(!token){toast('请先设置 Token');return;}
   if(faces.length===0){toast('本地没有数据');return;}
-  showLoading('正在上传…','正在同步数据到云端');
+  showLoading('正在上传…','正在合并数据到云端');
   try{
-    let sha=null;
+    let sha=null, cloudFaces=[];
+    // 先拉取云端现有数据
     try{
       const getRes=await fetch(GH_API,{headers:{'Authorization':`token ${token}`,'Accept':'application/vnd.github.v3+json'}});
-      if(getRes.ok){const f=await getRes.json();sha=f.sha;}
+      if(getRes.ok){
+        const f=await getRes.json();
+        sha=f.sha;
+        let jsonStr=null;
+        if(f.content&&f.content.trim()){
+          jsonStr=base64ToUtf8(f.content);
+        }else{
+          // 大文件(>1MB)：content 被截断，改用 raw 直接下载
+          const rawRes=await fetch(GH_RAW+'?t='+Date.now());
+          if(rawRes.ok)jsonStr=await rawRes.text();
+        }
+        if(jsonStr){ const d=JSON.parse(jsonStr); cloudFaces=d.faces||[]; }
+      }
     }catch(e){}
-    const content=utf8ToBase64(JSON.stringify({faces,timestamp:Date.now(),version:PAGE_VERSION}));
+    // 筛查：找出云端没有的本地新增数据（跳过重复项，原有数据保留）
+    const toAdd=[];
+    for(const lf of faces){
+      if(!isDuplicateAgainst(lf, cloudFaces)) toAdd.push(lf);
+    }
+    if(toAdd.length===0){
+      hideLoading();
+      toast('云端已包含全部数据，无需上传');
+      renderSyncContent();
+      return;
+    }
+    // 合并：云端原有数据在前，本地新增在后
+    const merged=cloudFaces.concat(toAdd);
+    const content=utf8ToBase64(JSON.stringify({faces:merged,timestamp:Date.now(),version:PAGE_VERSION}));
     const res=await fetch(GH_API,{
       method:'PUT',
       headers:{'Authorization':`token ${token}`,'Accept':'application/vnd.github.v3+json','Content-Type':'application/json'},
-      body:JSON.stringify({message:`cloud sync: ${new Date().toLocaleString('zh-CN')}`,content,...(sha?{sha}:{})})
+      body:JSON.stringify({message:`cloud sync upload: +${toAdd.length} (${new Date().toLocaleString('zh-CN')})`,content,...(sha?{sha}:{})})
     });
     hideLoading();
     if(res.ok){
       localStorage.setItem('last_sync_time',Date.now().toString());
-      toast('已上传到云端');
+      toast(`已上传 ${toAdd.length} 条新增，云端共 ${merged.length} 条`);
       renderSyncContent();
     }else{
       const err=await res.json().catch(()=>({}));
@@ -1305,7 +1332,7 @@ async function cloudSyncDownload(){
       jsonStr=base64ToUtf8(fileData.content);
     }else{
       // 大文件(>1MB)：API 会截断 content，改用 raw.githubusercontent.com 直接下载
-      const rawUrl='https://raw.githubusercontent.com/Tan0709/face-code/main/cloud-data/faces.json?t='+Date.now();
+      const rawUrl=GH_RAW+'?t='+Date.now();
       const rawRes=await fetch(rawUrl);
       if(!rawRes.ok)throw new Error('raw download failed: '+rawRes.status);
       jsonStr=await rawRes.text();
@@ -1600,6 +1627,31 @@ function findDuplicate(newFace, excludeId = null) {
 // ── 重复检测 ──
 // 查找所有重复：返回 [{exist, matchedKey, label}] 列表
 // 旧版 findDuplicate 已废弃（2008-2026），改用 findAllDuplicates
+// 判断 face 是否与给定数组中的任一条码字段重复（不依赖全局 faces）
+function isDuplicateAgainst(face, arr){
+  const newCodes = face.codes || {};
+  const newCustom = face.customFields || [];
+  const toCheck = [];
+  for (const [k, v] of Object.entries(newCodes)) {
+    if (v && v.trim()) toCheck.push({ key: k, val: v.trim(), isFixed: true });
+  }
+  for (const c of newCustom) {
+    if (c.value && c.value.trim()) toCheck.push({ key: 'cust_' + c.id, val: c.value.trim(), isFixed: false });
+  }
+  if (toCheck.length === 0) return false;
+  for (const exist of arr) {
+    const existCodes = exist.codes || {};
+    const existCustom = exist.customFields || [];
+    for (const { key, val, isFixed } of toCheck) {
+      let existVal = '';
+      if (isFixed) existVal = existCodes[key] || '';
+      else { const f = existCustom.find(c => 'cust_' + c.id === key); if (f) existVal = f.value || ''; }
+      if (existVal.trim() === val) return true;
+    }
+  }
+  return false;
+}
+
 function findAllDuplicates(newFace, excludeId = null) {
   const newCodes = newFace.codes || {};
   const newCustom = newFace.customFields || [];
@@ -1739,7 +1791,7 @@ function processImportQueue() {
 document.querySelectorAll('.modal-ov').forEach(ov=>{ov.addEventListener('click',e=>{if(e.target===ov)ov.classList.remove('open');});});
 
 // PWA Service Worker
-const SW_VERSION = 19;
+const SW_VERSION = 20;
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js?v=' + SW_VERSION + '&t=' + Date.now()).catch(() => {});
 }
@@ -1966,6 +2018,6 @@ function jumpToFace(id) {
 
 init();
 </script>
-<div style="text-align:center;font-size:8px;color:#e0dce8;padding:8px 0 4px;line-height:1;">v2.4.04</div>
+<div style="text-align:center;font-size:8px;color:#e0dce8;padding:8px 0 4px;line-height:1;">v2.4.05</div>
 </body>
 </html>
