@@ -2,7 +2,7 @@
   "name": "脸码收纳册",
   "short_name": "脸码册",
   "description": "游戏脸码收纳工具",
-  "start_url": "./face-code-v2407.html",
+  "start_url": "./face-code-manager.html",
   "display": "standalone",
   "background_color": "#F8F7F5",
   "theme_color": "#C4AADC",

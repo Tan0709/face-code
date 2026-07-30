@@ -1,5 +1,5 @@
 // SW_VERSION 每次发布新版本时将此处改为新数字即可触发更新
-const CACHE_NAME = 'face-code-v18';
+const CACHE_NAME = 'face-code-v19';
 const ASSETS = ['./face-code-manager.html', './manifest.json', './'];
 
 const PAGE_VERSION_KEY = 'page_version';
@@ -43,22 +43,24 @@ self.addEventListener('fetch', e => {
     || url.pathname.endsWith('/index.html')
     || url.pathname === '/' || url.pathname.endsWith('/');
   if (isHtml) {
+    // HTML 直接走网络取最新，失败才回退缓存。
+    // 注意：不再对 HTML 的 Response 做 clone/缓存（运行时），
+    // 因为对导航/HTML 响应克隆后缓存会触发 "Response body is already used" 异常，
+    // 导致更新失败并一直 fallback 到旧缓存。离线兜底由 install 时的 ASSETS 提供。
     e.respondWith(
       fetch(e.request, { cache: 'reload' })
-        .then(r => {
-          if (r.ok) caches.open(CACHE_NAME).then(c => c.put(e.request, r.clone()));
-          return r;
-        })
         .catch(() => caches.match(e.request))
     );
     return;
   }
   e.respondWith(
     fetch(e.request)
-      .then(r => {
+      .then(async r => {
         if (r.ok) {
+          // 静态资源：网络优先，成功后更新缓存。await 确保 put 完成，降低并发竞态
           const clone = r.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put(e.request, clone));
+          const cache = await caches.open(CACHE_NAME);
+          await cache.put(e.request, clone);
         }
         return r;
       })
