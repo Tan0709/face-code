@@ -1,5 +1,5 @@
 // SW_VERSION 每次发布新版本时将此处改为新数字即可触发更新
-const CACHE_NAME = 'face-code-v17';
+const CACHE_NAME = 'face-code-v18';
 const ASSETS = ['./face-code-manager.html', './manifest.json', './'];
 
 const PAGE_VERSION_KEY = 'page_version';
@@ -34,9 +34,25 @@ self.addEventListener('activate', e => {
   self.clients.claim();
 });
 
-// 优先网络，失败再走缓存
+// 优先网络，失败再走缓存；HTML 页面强制每次向网络取最新，避免旧 SW 卡住旧版
 self.addEventListener('fetch', e => {
   if (!e.request.url.startsWith(self.location.origin)) return;
+  const url = new URL(e.request.url);
+  const isHtml = e.request.mode === 'navigate'
+    || url.pathname.endsWith('/face-code-manager.html')
+    || url.pathname.endsWith('/index.html')
+    || url.pathname === '/' || url.pathname.endsWith('/');
+  if (isHtml) {
+    e.respondWith(
+      fetch(e.request, { cache: 'reload' })
+        .then(r => {
+          if (r.ok) caches.open(CACHE_NAME).then(c => c.put(e.request, r.clone()));
+          return r;
+        })
+        .catch(() => caches.match(e.request))
+    );
+    return;
+  }
   e.respondWith(
     fetch(e.request)
       .then(r => {
