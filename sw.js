@@ -1,5 +1,5 @@
 // SW_VERSION 每次发布新版本时将此处改为新数字即可触发更新
-const CACHE_NAME = 'face-code-v19';
+const CACHE_NAME = 'face-code-v20';
 const ASSETS = ['./face-code-manager.html', './manifest.json', './'];
 
 const PAGE_VERSION_KEY = 'page_version';
@@ -26,12 +26,17 @@ self.addEventListener('install', e => {
 });
 
 self.addEventListener('activate', e => {
-  e.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
-    )
-  );
-  self.clients.claim();
+  e.waitUntil((async () => {
+    const keys = await caches.keys();
+    await Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)));
+    await self.clients.claim();
+    // 强制刷新所有受控页面，确保立刻拿到新内容。
+    // 这能打破“旧 SW 缓存旧 HTML、且自检测版本永远等于最新不发刷新”的僵局。
+    const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    for (const c of clients) {
+      try { await c.navigate(c.url); } catch (_) { /* 忽略个别浏览器不支持的情况 */ }
+    }
+  })());
 });
 
 // 优先网络，失败再走缓存；HTML 页面强制每次向网络取最新，避免旧 SW 卡住旧版
