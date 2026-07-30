@@ -739,7 +739,7 @@
 <script>
 const DB_NAME = 'FaceCodeDB_v1';
 const STORE_KEY = 'faces';
-const PAGE_VERSION = 'v2.4.05'; // 版本标记，CDN缓存检测用
+const PAGE_VERSION = 'v2.4.06'; // 版本标记，CDN缓存检测用
 const FIXED = [{key:'cnBare',label:'国服无妆'},{key:'cnMakeup',label:'国服带妆'},{key:'sea',label:'新马服'}];
 const ASPECT = 6/9, OUT_W = 400;
 let faces = [], filter = {gender:'all',region:'all'};
@@ -1283,29 +1283,46 @@ async function cloudSyncUpload(){
         if(jsonStr){ const d=JSON.parse(jsonStr); cloudFaces=d.faces||[]; }
       }
     }catch(e){}
-    // 筛查：找出云端没有的本地新增数据（跳过重复项，原有数据保留）
+    // 筛查：将本地数据分为「新增」与「更新」两类
+    // - 新增：云端完全没有相同代码字段的记录
+    // - 更新：云端有相同代码字段，但内容（如立绘/名称等）与本地不同 → 以本地最新版本覆盖云端
     const toAdd=[];
+    const toUpdate=[];
     for(const lf of faces){
-      if(!isDuplicateAgainst(lf, cloudFaces)) toAdd.push(lf);
+      const match=findCloudMatchByCode(lf, cloudFaces);
+      if(!match){
+        toAdd.push(lf);
+      }else if(!faceContentEqual(lf, match)){
+        toUpdate.push(lf);
+      }
     }
-    if(toAdd.length===0){
+    if(toAdd.length===0 && toUpdate.length===0){
       hideLoading();
-      toast('云端已包含全部数据，无需上传');
+      toast('云端已是最新，无需上传');
       renderSyncContent();
       return;
     }
-    // 合并：云端原有数据在前，本地新增在后
-    const merged=cloudFaces.concat(toAdd);
+    // 合并：云端原有数据，更新项就地替换为本地版本，新增项追加到末尾
+    const merged=cloudFaces.slice();
+    for(const lf of toUpdate){
+      for(let i=0;i<merged.length;i++){
+        if(faceCodeMatch(lf, merged[i])){ merged[i]=lf; break; }
+      }
+    }
+    for(const a of toAdd) merged.push(a);
     const content=utf8ToBase64(JSON.stringify({faces:merged,timestamp:Date.now(),version:PAGE_VERSION}));
     const res=await fetch(GH_API,{
       method:'PUT',
       headers:{'Authorization':`token ${token}`,'Accept':'application/vnd.github.v3+json','Content-Type':'application/json'},
-      body:JSON.stringify({message:`cloud sync upload: +${toAdd.length} (${new Date().toLocaleString('zh-CN')})`,content,...(sha?{sha}:{})})
+      body:JSON.stringify({message:`cloud sync upload: +${toAdd.length} ~${toUpdate.length} (${new Date().toLocaleString('zh-CN')})`,content,...(sha?{sha}:{})})
     });
     hideLoading();
     if(res.ok){
       localStorage.setItem('last_sync_time',Date.now().toString());
-      toast(`已上传 ${toAdd.length} 条新增，云端共 ${merged.length} 条`);
+      const parts=[];
+      if(toAdd.length)parts.push(`新增 ${toAdd.length} 条`);
+      if(toUpdate.length)parts.push(`更新 ${toUpdate.length} 条`);
+      toast(`已上传（${parts.join('、')}），云端共 ${merged.length} 条`);
       renderSyncContent();
     }else{
       const err=await res.json().catch(()=>({}));
@@ -1626,32 +1643,6 @@ function findDuplicate(newFace, excludeId = null) {
 
 // ── 重复检测 ──
 // 查找所有重复：返回 [{exist, matchedKey, label}] 列表
-// 旧版 findDuplicate 已废弃（2008-2026），改用 findAllDuplicates
-// 判断 face 是否与给定数组中的任一条码字段重复（不依赖全局 faces）
-function isDuplicateAgainst(face, arr){
-  const newCodes = face.codes || {};
-  const newCustom = face.customFields || [];
-  const toCheck = [];
-  for (const [k, v] of Object.entries(newCodes)) {
-    if (v && v.trim()) toCheck.push({ key: k, val: v.trim(), isFixed: true });
-  }
-  for (const c of newCustom) {
-    if (c.value && c.value.trim()) toCheck.push({ key: 'cust_' + c.id, val: c.value.trim(), isFixed: false });
-  }
-  if (toCheck.length === 0) return false;
-  for (const exist of arr) {
-    const existCodes = exist.codes || {};
-    const existCustom = exist.customFields || [];
-    for (const { key, val, isFixed } of toCheck) {
-      let existVal = '';
-      if (isFixed) existVal = existCodes[key] || '';
-      else { const f = existCustom.find(c => 'cust_' + c.id === key); if (f) existVal = f.value || ''; }
-      if (existVal.trim() === val) return true;
-    }
-  }
-  return false;
-}
-
 function findAllDuplicates(newFace, excludeId = null) {
   const newCodes = newFace.codes || {};
   const newCustom = newFace.customFields || [];
@@ -1683,6 +1674,53 @@ function findAllDuplicates(newFace, excludeId = null) {
     }
   }
   return results;
+}
+
+// 取脸码所有非空代码字段，用于匹配/查重
+function getNonEmptyCodeChecks(face){
+  const codes = face.codes || {};
+  const custom = face.customFields || [];
+  const list = [];
+  for (const [k, v] of Object.entries(codes)) {
+    if (v && v.trim()) list.push({ key: k, val: v.trim(), isFixed: true });
+  }
+  for (const c of custom) {
+    if (c.value && c.value.trim()) list.push({ key: 'cust_' + c.id, val: c.value.trim(), isFixed: false });
+  }
+  return list;
+}
+// 判断两条脸码是否有任一相同代码字段值（a 无代码字段则返回 false）
+function faceCodeMatch(a, b){
+  const checks = getNonEmptyCodeChecks(a);
+  if (checks.length === 0) return false;
+  const bCodes = b.codes || {};
+  const bCustom = b.customFields || [];
+  for (const { key, val, isFixed } of checks) {
+    let bVal = '';
+    if (isFixed) bVal = bCodes[key] || '';
+    else { const f = bCustom.find(c => 'cust_' + c.id === key); if (f) bVal = f.value || ''; }
+    if (bVal.trim() === val) return true;
+  }
+  return false;
+}
+// 在云端数组里找与本地脸码代码字段匹配的记录
+function findCloudMatchByCode(lf, cloudFaces){
+  for (const exist of cloudFaces) {
+    if (faceCodeMatch(lf, exist)) return exist;
+  }
+  return null;
+}
+// 规范化比较：忽略字段顺序差异，内容一致才算相同
+function normalizeCodes(codes){ return Object.keys(codes||{}).sort().reduce((acc,k)=>{acc[k]=codes[k];return acc;},{}); }
+function normalizeCustom(cf){ return (cf||[]).slice().sort((x,y)=>String(x.id).localeCompare(String(y.id))); }
+function faceContentEqual(a, b){
+  if ((a.name||'') !== (b.name||'')) return false;
+  if ((a.gender||'') !== (b.gender||'')) return false;
+  if ((a.region||'') !== (b.region||'')) return false;
+  if (JSON.stringify(normalizeCodes(a.codes)) !== JSON.stringify(normalizeCodes(b.codes))) return false;
+  if (JSON.stringify(normalizeCustom(a.customFields)) !== JSON.stringify(normalizeCustom(b.customFields))) return false;
+  if ((a.img||'') !== (b.img||'')) return false;
+  return true;
 }
 
 // 显示重复弹窗（单条保存/导入时显示匹配信息）
@@ -1791,7 +1829,7 @@ function processImportQueue() {
 document.querySelectorAll('.modal-ov').forEach(ov=>{ov.addEventListener('click',e=>{if(e.target===ov)ov.classList.remove('open');});});
 
 // PWA Service Worker
-const SW_VERSION = 20;
+const SW_VERSION = 21;
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js?v=' + SW_VERSION + '&t=' + Date.now()).catch(() => {});
 }
