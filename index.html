@@ -4,12 +4,11 @@
 <meta charset="utf-8">
 <title>脸码收纳册</title>
 <script>
-  // 保留原始 query 参数跳转到主文件，便于绕过 CDN/网络层缓存（如 ?r=日期）
-  var q = location.search || '';
-  location.replace('face-code-manager.html' + q);
+  // 跳转到带版本号的主文件：每次发布换文件名=换路径，可绕过运营商按路径(忽略参数)的缓存
+  location.replace('face-code-v2407.html');
 </script>
 </head>
 <body>
-<p>正在跳转… <a href="face-code-manager.html">点击这里</a></p>
+<p>正在跳转… <a href="face-code-v2407.html">点击这里</a></p>
 </body>
 </html>

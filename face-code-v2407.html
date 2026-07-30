@@ -1,0 +1,2061 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>脸码收纳册</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#F8F7F5">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="脸码收纳册">
+<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎀</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #F8F7F5;
+    --card: #FFFFFF;
+    --accent: #C4AADC;
+    --accent-dark: #9B7EC4;
+    --text: #5A5468;
+    --text-light: #A8A0B8;
+    --text-lighter: #D4D0DC;
+    --border: #EDEAEF;
+    --tag-girl: #F0E6F5;
+    --tag-adult: #E8F0FA;
+    --tag-cn: #E4F5E8;
+    --tag-sea: #FAF0E4;
+    --tag-both: #EEE8FA;
+    --tag-girl-txt: #9060A0;
+    --tag-adult-txt: #4070A8;
+    --tag-cn-txt: #408050;
+    --tag-sea-txt: #906030;
+    --tag-both-txt: #6050A0;
+    --shadow: 0 2px 16px rgba(180,165,200,0.10);
+    --shadow-md: 0 4px 24px rgba(180,165,200,0.14);
+    --radius: 20px;
+    --radius-sm: 14px;
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    font-family: 'Noto Sans SC', -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    font-weight: 400;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100dvh;
+    padding-bottom: calc(100px + var(--safe-bottom));
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ── Header ── */
+  .header {
+    background: var(--card);
+    padding: 15px 18px 13px;
+    border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; z-index: 50;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .header-title {
+    font-size: 18px; font-weight: 600; letter-spacing: 1px; color: var(--text);
+  }
+  .header-btn {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: var(--bg); border: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; transition: all 0.2s; color: var(--text-light);
+  }
+  .header-btn:active { transform: scale(0.88); background: var(--border); }
+
+  /* ── Stats ── */
+  .stats {
+    display: flex; justify-content: space-between;
+    padding: 10px 18px;
+    background: var(--card);
+    border-bottom: 1px solid var(--border);
+    position: sticky; top: 57px; z-index: 45;
+  }
+  .stat { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--text-light); }
+  .dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+  .dot.p { background: var(--accent); }
+  .dot.b { background: #A8C0DC; }
+  .dot.g { background: #A8D8B8; }
+  .dot.o { background: #DCC8A8; }
+  .n { font-weight: 600; color: var(--text); }
+
+  /* ── Filters ── */
+  .filters {
+    background: var(--card);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 14px 6px;
+    position: sticky; top: 102px; z-index: 40;
+  }
+  .filter-row { display: flex; gap: 6px; align-items: center; overflow-x: auto; padding-bottom: 6px; scrollbar-width: none; }
+  .filter-row::-webkit-scrollbar { display: none; }
+  .filter-lbl { font-size: 11px; color: var(--text-lighter); white-space: nowrap; flex-shrink: 0; margin-right: 2px; }
+  .fbtn {
+    padding: 5px 13px; border-radius: 20px;
+    border: 1.5px solid var(--border); background: var(--card);
+    font-size: 12px; cursor: pointer; transition: all 0.2s;
+    color: var(--text-light); white-space: nowrap; flex-shrink: 0;
+    font-family: inherit; font-weight: 400;
+  }
+  .fbtn:active { transform: scale(0.95); }
+  .fbtn.on { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 500; }
+
+  /* ── Search ── */
+  .search { background: var(--card); border-bottom: 1px solid var(--border); padding: 10px 14px; }
+  .search-box {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--bg); border: 1.5px solid var(--border);
+    border-radius: 14px; padding: 9px 14px; transition: all 0.2s;
+  }
+  .search-box:focus-within { border-color: var(--accent); background: var(--card); box-shadow: var(--shadow); }
+  .search-box input {
+    flex: 1; border: none; background: transparent;
+    font-size: 14px; color: var(--text); outline: none; font-family: inherit;
+  }
+  .search-box input::placeholder { color: var(--text-lighter); }
+  .search-i { font-size: 13px; opacity: 0.4; flex-shrink: 0; }
+
+  /* ── Grid ── */
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 14px; }
+  .card {
+    background: var(--card); border-radius: var(--radius);
+    box-shadow: var(--shadow); overflow: hidden;
+    cursor: pointer; transition: transform 0.18s, box-shadow 0.18s;
+  }
+  .card:active { transform: scale(0.96); box-shadow: none; }
+  .ci-wrap {
+    width: 100%; aspect-ratio: 3/4;
+    background: linear-gradient(145deg, #F5F0FA 0%, #F0F5FA 100%);
+    position: relative; overflow: hidden;
+  }
+  .ci { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .ci-ph { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 26px; opacity: 0.3; }
+  .ci-dot { position: absolute; top: 5px; left: 5px; width: 7px; height: 7px; border-radius: 50%; background: #A8D0B8; border: 1.5px solid #fff; }
+  .ci-badge { position: absolute; top: 5px; right: 5px; font-size: 8px; padding: 2px 6px; border-radius: 8px; font-weight: 500; opacity: 0.85; }
+  .cb { padding: 9px 9px 10px; }
+  .cn { font-size: 12px; font-weight: 500; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 5px; }
+  .ctags { display: flex; gap: 3px; flex-wrap: wrap; }
+  .ctag { font-size: 9px; padding: 1px 6px; border-radius: 8px; font-weight: 400; }
+  .ctag.g { background: var(--tag-girl); color: var(--tag-girl-txt); }
+  .ctag.a { background: var(--tag-adult); color: var(--tag-adult-txt); }
+  .ctag.c { background: var(--tag-cn); color: var(--tag-cn-txt); }
+  .ctag.s { background: var(--tag-sea); color: var(--tag-sea-txt); }
+  .ctag.b { background: var(--tag-both); color: var(--tag-both-txt); }
+
+  .empty { grid-column: 1/-1; text-align: center; padding: 70px 20px; color: var(--text-lighter); }
+  .empty-ic { font-size: 44px; margin-bottom: 12px; opacity: 0.4; }
+
+  /* ── FAB ── */
+  .fab {
+    position: fixed; right: 16px; bottom: calc(20px + var(--safe-bottom));
+    width: 52px; height: 52px; border-radius: 50%;
+    background: var(--accent); color: #fff;
+    font-size: 22px; border: none; cursor: pointer;
+    box-shadow: var(--shadow-md);
+    z-index: 100; display: flex; align-items: center; justify-content: center;
+    transition: transform 0.2s; line-height: 1;
+  }
+  .fab:active { transform: scale(0.88); }
+
+  /* ── FAB Menu ── */
+  .fab-backdrop { display: none; position: fixed; inset: 0; z-index: 98; background: rgba(248,247,245,0.7); backdrop-filter: blur(3px); }
+  .fab-backdrop.show { display: block; }
+  .fab-menu { display: none; flex-direction: column; gap: 8px; position: fixed; right: 16px; bottom: calc(80px + var(--safe-bottom)); z-index: 99; }
+  .fab-menu.show { display: flex; }
+  .fab-menu-item {
+    background: var(--card); border: none; border-radius: var(--radius-sm);
+    padding: 11px 18px; font-size: 13px; font-weight: 400;
+    cursor: pointer; color: var(--text); font-family: inherit;
+    box-shadow: var(--shadow); white-space: nowrap;
+    display: flex; align-items: center; gap: 8px;
+    transition: all 0.18s;
+  }
+  .fab-menu-item:active { transform: scale(0.96); background: var(--bg); }
+  .fab-menu-item span { font-size: 15px; }
+
+  /* ── Modals ── */
+  .modal-ov { display: none; position: fixed; inset: 0; z-index: 200; align-items: flex-end; justify-content: center; background: rgba(248,247,245,0.75); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+  .modal-ov.open { display: flex; }
+  .modal {
+    background: var(--card); border-radius: 24px 24px 0 0;
+    width: 100%; max-width: 560px; max-height: 92dvh; overflow-y: auto;
+    padding: 10px 18px calc(28px + var(--safe-bottom));
+    animation: slideUp 0.35s cubic-bezier(0.25,0.86,0.45,1);
+    -webkit-overflow-scrolling: touch;
+  }
+  @keyframes slideUp { from { transform: translateY(60px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+  .mh { width: 36px; height: 4px; background: var(--border); border-radius: 2px; margin: 0 auto 14px; }
+  .mtitle { font-size: 18px; font-weight: 600; text-align: center; margin-bottom: 20px; color: var(--text); letter-spacing: 0.5px; }
+
+  /* ── Form ── */
+  .fl { font-size: 12px; color: var(--text-light); margin-bottom: 7px; font-weight: 400; display: block; }
+  .fg { margin-bottom: 16px; }
+  .fin {
+    width: 100%; padding: 12px 15px;
+    border: 1.5px solid var(--border); border-radius: 14px;
+    font-size: 14px; background: var(--bg); color: var(--text);
+    outline: none; transition: all 0.2s; font-family: inherit; font-weight: 400;
+    -webkit-appearance: none;
+  }
+  .fin:focus { border-color: var(--accent); background: var(--card); box-shadow: 0 0 0 3px rgba(196,170,220,0.12); }
+  .fsel {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23A8A0B8' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 14px center; padding-right: 38px; cursor: pointer;
+  }
+  .fta {
+    width: 100%; padding: 12px 15px;
+    border: 1.5px solid var(--border); border-radius: 14px;
+    font-size: 13px; font-family: 'Noto Sans SC', monospace;
+    background: var(--bg); color: var(--text); outline: none;
+    resize: vertical; min-height: 82px; line-height: 1.7; transition: all 0.2s;
+    -webkit-appearance: none; font-weight: 300;
+  }
+  .fta:focus { border-color: var(--accent); background: var(--card); box-shadow: 0 0 0 3px rgba(196,170,220,0.12); }
+
+  /* Upload */
+  .up-area { border: 2px dashed var(--border); border-radius: 18px; padding: 22px; text-align: center; cursor: pointer; transition: all 0.2s; background: var(--bg); }
+  .up-area:active { border-color: var(--accent); background: #FAF8FF; }
+  .up-preview { width: 88px; height: 117px; object-fit: cover; border-radius: 12px; display: block; margin: 0 auto; }
+  .up-hint { font-size: 12px; color: var(--text-light); margin-top: 8px; }
+  .up-hint-ic { font-size: 26px; margin-bottom: 6px; display: block; opacity: 0.4; }
+
+  /* Region */
+  .rbox { display: flex; gap: 8px; flex-wrap: wrap; }
+  .rbox-item {
+    flex: 1; min-width: 95px; display: flex; align-items: center; gap: 8px;
+    padding: 10px 14px; border-radius: 14px;
+    border: 1.5px solid var(--border); background: var(--bg);
+    cursor: pointer; font-size: 13px; font-weight: 400; color: var(--text-light);
+    transition: all 0.2s; font-family: inherit;
+  }
+  .rbox-item:active { transform: scale(0.97); }
+  .rbox-item.cn.on { background: var(--tag-cn); border-color: #C8E8C8; color: var(--tag-cn-txt); }
+  .rbox-item.sea.on { background: var(--tag-sea); border-color: #E8D8C0; color: var(--tag-sea-txt); }
+  .rbox-check { width: 16px; height: 16px; border-radius: 50%; border: 1.5px solid #D0C8E0; background: var(--card); display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.15s; }
+  .rbox-item.on .rbox-check { background: var(--accent); border-color: var(--accent); }
+  .rbox-item.on .rbox-check::after { content: ''; display: block; width: 8px; height: 5px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5' viewBox='0 0 8 5'%3E%3Cpath d='M1 3l2.5 2.5 4-4' stroke='%23fff' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: center; }
+
+  /* Field sections */
+  .fsec { margin-bottom: 16px; }
+  .fsec-hd { display: flex; align-items: center; justify-content: space-between; margin-bottom: 7px; }
+  .fsec-lbl { font-size: 12px; color: var(--text-light); font-weight: 400; }
+  .fsec-lbl.lock { font-size: 13px; color: var(--text); font-weight: 500; }
+  .add-fbtn { font-size: 11px; color: var(--accent-dark); background: transparent; border: 1.5px solid rgba(196,170,220,0.35); border-radius: 12px; padding: 4px 12px; cursor: pointer; font-family: inherit; transition: all 0.2s; font-weight: 400; }
+  .add-fbtn:active { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .cust-row { display: flex; gap: 8px; align-items: flex-start; }
+  .cust-row .fta { flex: 1; }
+  .del-fbtn { width: 38px; height: 38px; border-radius: 10px; background: #FAF0F4; color: #C090A8; border: none; cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px; transition: all 0.2s; font-family: inherit; }
+  .del-fbtn:active { transform: scale(0.9); }
+  .add-cust-box { margin-bottom: 16px; }
+  .add-cust-row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+  .add-cust-row .fin { flex: 1; }
+
+  /* Buttons */
+  .btn-row { display: flex; gap: 10px; margin-top: 20px; }
+  .btn { flex: 1; padding: 13px; border-radius: 14px; font-size: 15px; font-weight: 400; cursor: pointer; border: none; font-family: inherit; transition: all 0.2s; }
+  .btn:active { transform: scale(0.97); }
+  .btn-p { background: var(--accent); color: #fff; }
+  .btn-s { background: var(--bg); color: var(--text-light); }
+  .btn-d { background: #FAF0F4; color: #C090A8; }
+
+  /* ── Detail ── */
+  .det-img { width: 100%; max-height: 300px; object-fit: contain; border-radius: 20px; display: block; margin: 0 auto 16px; background: linear-gradient(145deg, #F5F0FA, #F0F5FA); }
+  .det-no-img { width: 100%; height: 180px; border-radius: 20px; background: linear-gradient(145deg, #F5F0FA, #F0F5FA); display: flex; align-items: center; justify-content: center; font-size: 42px; margin-bottom: 16px; opacity: 0.4; }
+  .det-name { font-size: 20px; font-weight: 600; text-align: center; margin-bottom: 10px; letter-spacing: 0.5px; }
+  .det-tags { display: flex; justify-content: center; gap: 6px; margin-bottom: 18px; flex-wrap: wrap; }
+  .det-code { margin-bottom: 14px; }
+  .det-code-hd { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .det-code-lbl { font-size: 13px; font-weight: 500; color: var(--text); }
+  .cpbtn { background: var(--bg); color: var(--text); border: 1.5px solid var(--border); border-radius: 10px; padding: 7px 16px; font-size: 12px; font-weight: 400; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; font-family: inherit; transition: all 0.2s; }
+  .cpbtn:active { transform: scale(0.95); }
+  .cpbtn.copied { background: var(--tag-cn); border-color: #C8E8C8; color: var(--tag-cn-txt); }
+  .code-box { background: var(--bg); border: 1.5px solid var(--border); border-radius: 14px; padding: 14px; }
+  .code-txt { color: #7060880; font-family: 'Noto Sans SC', monospace; font-size: 12px; line-height: 1.8; word-break: break-all; white-space: pre-wrap; max-height: 150px; overflow-y: auto; user-select: all; -webkit-user-select: all; font-weight: 300; }
+  .code-txt::-webkit-scrollbar { width: 3px; }
+  .code-txt::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  .det-actions { display: flex; gap: 10px; margin-top: 18px; }
+
+  /* ── Import ── */
+  .import-box { padding: 4px 0; }
+  .import-up { border: 2px dashed var(--border); border-radius: 20px; padding: 32px 20px; text-align: center; cursor: pointer; background: var(--bg); transition: all 0.2s; }
+  .import-up:active { border-color: var(--accent); background: #FAF8FF; }
+  .import-up-ic { font-size: 36px; margin-bottom: 10px; display: block; opacity: 0.5; }
+  .import-up-t1 { font-size: 15px; font-weight: 500; color: var(--text); margin-bottom: 5px; }
+  .import-up-t2 { font-size: 12px; color: var(--text-light); }
+  .import-preview-box { background: var(--tag-cn); border: 1.5px solid #C8E8C8; border-radius: 14px; padding: 14px; margin-bottom: 14px; font-size: 13px; color: var(--tag-cn-txt); text-align: center; font-weight: 400; }
+  .import-btns { display: flex; flex-direction: column; gap: 8px; }
+
+  /* ── Toast ── */
+  .toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%) translateY(-80px); background: rgba(90,84,104,0.88); backdrop-filter: blur(10px); color: #fff; padding: 11px 24px; border-radius: 24px; font-size: 14px; z-index: 999; transition: transform 0.4s cubic-bezier(0.25,0.86,0.45,1); pointer-events: none; white-space: nowrap; font-weight: 400; }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+
+  /* ── Crop ── */
+  .crop-ov { display: none; position: fixed; inset: 0; z-index: 500; background: #1E1B24; flex-direction: column; }
+  .crop-ov.open { display: flex; }
+  .crop-head { display: flex; justify-content: space-between; align-items: center; padding: 14px 18px; flex-shrink: 0; background: rgba(30,27,36,0.95); }
+  .crop-hbtn { background: transparent; border: none; color: rgba(255,255,255,0.45); font-size: 15px; font-weight: 400; cursor: pointer; padding: 6px 0; font-family: inherit; }
+  .crop-hbtn.done { color: #E0B8D8; font-size: 16px; }
+  .crop-ttl { font-size: 13px; color: rgba(255,255,255,0.35); }
+  .crop-stage { flex: 1; position: relative; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+  .crop-frame { position: absolute; overflow: hidden; border: 2px solid rgba(255,255,255,0.85); box-shadow: 0 0 0 9999px rgba(0,0,0,0.65); border-radius: 2px; z-index: 4; }
+  .crop-img { position: absolute; transform-origin: 0 0; cursor: grab; max-width: none; }
+  .crop-img:active { cursor: grabbing; }
+  .crop-foot { padding: 12px 20px 20px; background: rgba(30,27,36,0.95); flex-shrink: 0; text-align: center; }
+  .crop-foot-hint { color: rgba(255,255,255,0.3); font-size: 12px; }
+  .crop-foot-hint b { color: rgba(255,255,255,0.6); font-weight: 400; }
+
+  /* ── Loading Overlay ── */
+  .loading-ov {
+    display: none;
+    position: fixed; inset: 0; z-index: 600;
+    background: rgba(248,247,245,0.92);
+    backdrop-filter: blur(6px);
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+  }
+  .loading-ov.open { display: flex; }
+  .loading-spinner {
+    width: 40px; height: 40px;
+    border: 3px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-msg { font-size: 14px; color: var(--text-light); font-weight: 400; }
+  .loading-title { font-size: 15px; font-weight: 600; color: var(--text); }
+
+  /* ── Import Progress ── */
+  .import-progress-box { display: none; padding: 8px 0 4px; }
+  .import-progress-box.show { display: block; }
+  .import-progress-info { display: flex; justify-content: space-between; font-size: 12px; color: var(--text-light); margin-bottom: 8px; }
+  .import-progress-bar { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+  .import-progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-dark)); border-radius: 3px; transition: width 0.2s ease; min-width: 2px; }
+
+  /* ── Batch Mode ── */
+  .batch-bar {
+    display: none;
+    position: fixed;
+    left: 0; right: 0;
+    bottom: calc(68px + var(--safe-bottom));
+    z-index: 150;
+    background: var(--card);
+    border-top: 1px solid var(--border);
+    padding: 10px 16px calc(10px + var(--safe-bottom));
+    box-shadow: 0 -4px 20px rgba(180,165,200,0.15);
+    animation: slideUp 0.25s ease;
+  }
+  .batch-bar.show { display: block; }
+  .batch-info {
+    font-size: 13px;
+    color: var(--text-light);
+    text-align: center;
+    margin-bottom: 10px;
+  }
+  .batch-info b { color: var(--accent-dark); font-weight: 600; }
+  .batch-btns { display: flex; gap: 8px; }
+  .batch-btn {
+    flex: 1;
+    padding: 10px 8px;
+    border-radius: 12px;
+    border: 1.5px solid var(--border);
+    background: var(--card);
+    font-size: 13px;
+    font-weight: 400;
+    color: var(--text);
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.18s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+  }
+  .batch-btn:active { transform: scale(0.96); }
+  .batch-btn.select-all { border-color: var(--accent); color: var(--accent-dark); background: #FAF8FF; }
+  .batch-btn.del { border-color: #E8C0C8; color: #C06070; background: #FFF8F8; }
+  .batch-btn.exp { border-color: var(--tag-cn); color: var(--tag-cn-txt); background: #F8FFF8; }
+  .batch-btn.exit { background: var(--bg); color: var(--text-light); }
+  .batch-btn span { font-size: 14px; }
+
+  /* ── Card Batch State ── */
+  .card { position: relative; }
+  .card.batch-sel { outline: 2.5px solid var(--accent); outline-offset: -2px; }
+  .cb-check {
+    display: none;
+    position: absolute;
+    bottom: 6px;
+    right: 6px;
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.9);
+    border: 2px solid var(--accent);
+    z-index: 5;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 1px 6px rgba(0,0,0,0.15);
+  }
+  .card.batch-sel .cb-check {
+    display: flex;
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+  .cb-check::after {
+    content: '';
+    display: none;
+    width: 10px; height: 7px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='7' viewBox='0 0 10 7'%3E%3Cpath d='M1 4l3 3 5-6' stroke='%23fff' stroke-width='1.8' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: center;
+  }
+  .card.batch-sel .cb-check::after { display: block; }
+
+  /* Batch mode: hide FAB and header menu */
+  body.batch-active .fab { display: none; }
+  body.batch-active .fab-backdrop { display: none !important; }
+  body.batch-active .fab-menu { display: none !important; }
+  body.batch-active .header-btn { display: none; }
+
+  /* ── Scroll Jump ── */
+  .jump-btns {
+    position: fixed;
+    right: 16px;
+    bottom: calc(80px + var(--safe-bottom));
+    z-index: 90;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(12px);
+    transition: opacity 0.3s, transform 0.3s;
+  }
+  .jump-btns.show {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0);
+  }
+  .jump-btn {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: var(--card);
+    border: 1.5px solid var(--border);
+    box-shadow: var(--shadow);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: var(--text-light);
+  }
+  .jump-btn:active { transform: scale(0.9); background: var(--accent); color: #fff; border-color: var(--accent); }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-title">脸码收纳册</div>
+  <button class="header-btn" onclick="toggleFabMenu()">&#9776;</button>
+</div>
+
+<div class="stats">
+  <div class="stat"><div class="dot p"></div>全部 <span class="n" id="totalCount">0</span></div>
+  <div class="stat"><div class="dot p"></div>少女 <span class="n" id="girlCount">0</span></div>
+  <div class="stat"><div class="dot b"></div>成女 <span class="n" id="adultCount">0</span></div>
+  <div class="stat"><div class="dot g"></div>国服 <span class="n" id="cnCount">0</span></div>
+  <div class="stat"><div class="dot o"></div>新马 <span class="n" id="seaCount">0</span></div>
+</div>
+
+<div class="filters">
+  <div class="filter-row">
+    <span class="filter-lbl">体型</span>
+    <button class="fbtn on" data-type="gender" data-val="all">全部</button>
+    <button class="fbtn" data-type="gender" data-val="girl">少女体</button>
+    <button class="fbtn" data-type="gender" data-val="adult">成女体</button>
+  </div>
+  <div class="filter-row">
+    <span class="filter-lbl">区服</span>
+    <button class="fbtn on" data-type="region" data-val="all">全部</button>
+    <button class="fbtn" data-type="region" data-val="cn">国服</button>
+    <button class="fbtn" data-type="region" data-val="sea">新马服</button>
+  </div>
+</div>
+
+<div class="search">
+  <div class="search-box">
+    <span class="search-i">&#9744;</span>
+    <input id="searchInput" placeholder="搜索脸码名称…" oninput="render()">
+  </div>
+</div>
+
+<div class="grid" id="grid"></div>
+
+<div class="batch-bar" id="batchBar">
+  <div class="batch-info">已选 <b id="batchCount">0</b> 项</div>
+  <div class="batch-btns">
+    <button class="batch-btn select-all" id="batchSelectAll" onclick="batchSelectAll()"><span>&#10003;</span> 全选</button>
+    <button class="batch-btn del" onclick="batchDelete()"><span>&#128465;</span> 删除</button>
+    <button class="batch-btn exp" onclick="batchExport()"><span>&#8657;</span> 导出</button>
+    <button class="batch-btn exit" onclick="exitBatchMode()"><span>&#10005;</span></button>
+  </div>
+</div>
+
+<button class="fab" onclick="openAddModal()">+</button>
+
+<div class="fab-backdrop" id="fabBackdrop" onclick="hideFabMenu()"></div>
+<div class="fab-menu" id="fabMenu">
+  <button class="fab-menu-item" onclick="exportData()"><span>&#8657;</span> 导出数据</button>
+  <button class="fab-menu-item" onclick="openImportModal()"><span>&#8659;</span> 导入数据</button>
+  <button class="fab-menu-item" onclick="checkAllDuplicates()"><span>&#10004;</span> 内容查重</button>
+  <button class="fab-menu-item" onclick="openSyncModal()"><span>&#9729;</span> 云端同步</button>
+</div>
+
+<!-- Scroll Jump -->
+<div class="jump-btns" id="jumpBtns">
+  <button class="jump-btn" onclick="scrollToTop()" title="顶部">&#8679;</button>
+  <button class="jump-btn" onclick="scrollToBottom()" title="底部">&#8681;</button>
+</div>
+
+<!-- Add Modal -->
+<div class="modal-ov" id="addModal">
+  <div class="modal">
+    <div class="mh"></div>
+    <div class="mtitle" id="modalTitle">添加脸码</div>
+
+    <div class="fg">
+      <label class="fl">立绘图片</label>
+      <div class="up-area" id="uploadArea">
+        <input type="file" id="imgInput" accept="image/gif,image/jpeg,image/png,image/webp" style="display:none" onchange="startCrop(this.files[0])">
+        <img id="uploadPreview" style="display:none">
+        <div id="uploadHint">
+          <div class="up-hint-ic">&#9634;</div>
+          <div class="up-hint">点击上传 / 粘贴 / 拖入图片</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="fg">
+      <label class="fl">名称</label>
+      <input class="fin" id="faceName" placeholder="输入脸码名称" maxlength="50">
+    </div>
+
+    <div class="fg">
+      <label class="fl">体型</label>
+      <select class="fin fsel" id="faceGender">
+        <option value="girl">少女体</option>
+        <option value="adult">成女体</option>
+      </select>
+    </div>
+
+    <div class="fg">
+      <label class="fl">区服（可多选）</label>
+      <div class="rbox">
+        <div class="rbox-item cn on" id="checkCn" onclick="toggleRbox(this)">
+          <div class="rbox-check"></div><span>国服</span>
+        </div>
+        <div class="rbox-item sea" id="checkSea" onclick="toggleRbox(this)">
+          <div class="rbox-check"></div><span>新马服</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="fsec">
+      <div class="fsec-hd"><span class="fsec-lbl lock">国服无妆</span></div>
+      <textarea class="fta" id="f_cnBare" placeholder="粘贴国服无妆脸码…"></textarea>
+    </div>
+    <div class="fsec">
+      <div class="fsec-hd"><span class="fsec-lbl lock">国服带妆</span></div>
+      <textarea class="fta" id="f_cnMakeup" placeholder="粘贴国服带妆脸码…"></textarea>
+    </div>
+    <div class="fsec">
+      <div class="fsec-hd"><span class="fsec-lbl lock">新马服</span></div>
+      <textarea class="fta" id="f_sea" placeholder="粘贴新马服脸码…"></textarea>
+    </div>
+
+    <div id="customFieldsContainer"></div>
+
+    <button class="add-fbtn" onclick="showAddCustomField()" style="width:100%;text-align:center;margin-bottom:16px;display:block">
+      + 添加自定义项
+    </button>
+
+    <div class="add-cust-box" id="addCustomBox" style="display:none">
+      <div class="add-cust-row">
+        <input class="fin" id="newCustomName" placeholder="输入自定义项名称，如：台服" maxlength="20">
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-p" onclick="confirmAddCustom()" style="flex:1">确认添加</button>
+        <button class="btn btn-s" onclick="hideAddCustomField()" style="flex:1">取消</button>
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-s" onclick="closeAddModal()">取消</button>
+      <button class="btn btn-p" onclick="saveFace()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- Crop -->
+<div class="crop-ov" id="cropOverlay">
+  <div class="crop-head">
+    <button class="crop-hbtn" onclick="cancelCrop()">取消</button>
+    <span class="crop-ttl">6 : 9</span>
+    <button class="crop-hbtn done" onclick="confirmCrop()">完成</button>
+  </div>
+  <div class="crop-stage" id="cropStage">
+    <div class="crop-frame" id="cropFrame">
+      <img class="crop-img" id="cropImg" draggable="false">
+    </div>
+  </div>
+  <div class="crop-foot">
+    <div class="crop-foot-hint" id="cropFootHint"><b>单指拖动</b> 移动图片 &nbsp;&middot;&nbsp; <b>双指缩放</b> 调整大小</div>
+  </div>
+</div>
+
+<!-- Duplicate Modal -->
+<div class="modal-ov" id="dupModal">
+  <div class="modal">
+    <div class="mh"></div>
+    <div class="mtitle">检测到重复脸码</div>
+    <div id="dupInfo"></div>
+    <div class="btn-row">
+      <button class="btn btn-p" onclick="dupAction('replace')">&#8635; 替换之前的脸码</button>
+    </div>
+    <div id="dupAllReplaceRow" class="btn-row" style="display:none;">
+      <button class="btn btn-p" onclick="dupAction('replace_all')" style="background:var(--accent-dark);">全部替换剩余项</button>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-s" id="dupCancelBtn" onclick="dupAction('cancel')">取消保存</button>
+    </div>
+    <div id="dupAllSkipRow" class="btn-row" style="display:none;">
+      <button class="btn btn-s" onclick="dupAction('skip_all')" style="color:var(--text-lighter);">全部跳过剩余项</button>
+    </div>
+  </div>
+</div>
+
+<!-- Detail -->
+<div class="modal-ov" id="detailModal">
+  <div class="modal">
+    <div class="mh"></div>
+    <div id="detailImgWrap"></div>
+    <div class="det-name" id="detailName"></div>
+    <div class="det-tags" id="detailTags"></div>
+    <div id="detailCodesContainer"></div>
+    <div class="det-actions">
+      <button class="btn btn-s" onclick="openEditFromDetail()">&#9998; 编辑</button>
+      <button class="btn btn-s" onclick="closeDetailModal()">关闭</button>
+      <button class="btn btn-d" onclick="deleteFace()">&#10005; 删除</button>
+    </div>
+  </div>
+</div>
+
+<!-- Duplicate List Modal -->
+<div class="modal-ov" id="dupListModal">
+  <div class="modal">
+    <div class="mh"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+      <div class="mtitle" style="margin-bottom:0;">内容查重结果</div>
+      <button id="dupSelectAllBtn" onclick="selectAllDup()" style="font-size:12px;padding:5px 12px;border-radius:10px;border:1.5px solid var(--border);background:var(--card);color:var(--text-light);cursor:pointer;font-family:inherit;">全选</button>
+    </div>
+    <div id="dupListBody" style="max-height:52vh;overflow-y:auto;"></div>
+    <div id="dupActionBar" style="display:none;margin-top:12px;">
+      <div id="dupSelectedInfo" style="font-size:12px;color:var(--text-light);text-align:center;margin-bottom:8px;"></div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-s" onclick="closeDupListModal()" style="flex:1">关闭</button>
+        <button class="btn btn-d" id="dupDelBtn" onclick="deleteSelectedDup()" style="flex:1;background:#FFF8F8;border-color:#E8C0C8;color:#C06070;">&#10005; 删除</button>
+      </div>
+    </div>
+    <div id="dupCloseBar">
+      <div class="btn-row" style="margin-top:12px;">
+        <button class="btn btn-s" onclick="closeDupListModal()" style="flex:1">关闭</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Import -->
+<div class="modal-ov" id="importModal">
+  <div class="modal">
+    <div class="mh"></div>
+    <div class="mtitle">导入数据</div>
+    <div id="importUpload" class="import-box">
+      <div class="import-up" onclick="document.getElementById('importFileInput').click()">
+        <input type="file" id="importFileInput" accept=".json" style="display:none" onchange="handleImportFile(this.files[0])">
+        <div class="import-up-ic">&#8659;</div>
+        <div class="import-up-t1">点击选择 .json 备份文件</div>
+        <div class="import-up-t2">导出时的备份文件</div>
+      </div>
+    </div>
+    <div id="importPreviewBox" style="display:none" class="import-box">
+      <div class="import-preview-box">检测到 <b id="importCount">0</b> 条脸码</div>
+      <div class="import-progress-box" id="importProgressBox">
+        <div class="import-progress-info">
+          <span id="importProgressLabel">正在导入…</span>
+          <span id="importProgressPct">0%</span>
+        </div>
+        <div class="import-progress-bar">
+          <div class="import-progress-fill" id="importProgressFill" style="width:0%"></div>
+        </div>
+      </div>
+      <div class="import-btns" id="importBtns">
+        <button class="btn btn-p" onclick="doImport('merge')">+ 合并导入</button>
+        <p style="font-size:11px;color:var(--text-lighter);text-align:center;margin:0">保留现有数据，追加新脸码</p>
+        <button class="btn btn-s" onclick="doImport('replace')">&#8635; 覆盖导入</button>
+        <p style="font-size:11px;color:var(--text-lighter);text-align:center;margin:0">用导入数据完全替换</p>
+        <button class="btn btn-s" onclick="cancelImport()" style="background:#F5F3F8">取消</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Cloud Sync Modal -->
+<div class="modal-ov" id="syncModal">
+  <div class="modal">
+    <div class="mh" onclick="closeSyncModal()"></div>
+    <div class="mtitle">&#9729; 云端同步</div>
+    <div id="syncContent"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- Global Loading Overlay -->
+<div class="loading-ov" id="loadingOverlay">
+  <div class="loading-spinner"></div>
+  <div class="loading-title" id="loadingTitle">处理中…</div>
+  <div class="loading-msg" id="loadingMsg"></div>
+</div>
+
+<script>
+const DB_NAME = 'FaceCodeDB_v1';
+const STORE_KEY = 'faces';
+const PAGE_VERSION = 'v2.4.07'; // 版本标记，CDN缓存检测用
+const FIXED = [{key:'cnBare',label:'国服无妆'},{key:'cnMakeup',label:'国服带妆'},{key:'sea',label:'新马服'}];
+const ASPECT = 6/9, OUT_W = 400;
+let faces = [], filter = {gender:'all',region:'all'};
+let editingId = null, currentDetailId = null;
+let currentCodes = {}, currentCustomFields = [], pendingCustomFields = [];
+let C = {}, pendingImportData = null;
+let db = null;
+let pendingDup = null; // { mode:'save'|'import', newFace, dupFace }
+let pendingImports = [];
+let pendingImportsAll = [];
+let skippedDupCount = 0;
+let importAutoAction = null; // 'replace' | 'skip' | null — 导入时自动处理重复项的标志
+let pendingSyncData = null; // 云端恢复选项数据
+
+// 批量模式
+let batchMode = false;
+let selectedIds = new Set();
+let longPressTimer = null;
+const LONG_PRESS_MS = 500;
+
+// IndexedDB 初始化
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, 1);
+    req.onerror = () => reject(req.error);
+    req.onsuccess = () => { db = req.result; resolve(db); };
+    req.onupgradeneeded = (e) => {
+      const database = e.target.result;
+      if (!database.objectStoreNames.contains(STORE_KEY)) {
+        database.createObjectStore(STORE_KEY);
+      }
+    };
+  });
+}
+function dbGet(key) {
+  return new Promise((resolve, reject) => {
+    if (!db) { resolve(null); return; }
+    const tx = db.transaction(STORE_KEY, 'readonly');
+    const req = tx.objectStore(STORE_KEY).get(key);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+function dbPut(key, value) {
+  return new Promise((resolve, reject) => {
+    if (!db) { reject(new Error('DB not ready')); return; }
+    const tx = db.transaction(STORE_KEY, 'readwrite');
+    const req = tx.objectStore(STORE_KEY).put(value, key);
+    req.onsuccess = () => resolve();
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function init() {
+  try {
+    await openDB();
+    const stored = await dbGet('faceList');
+    faces = stored || [];
+  } catch (e) {
+    console.warn('IndexedDB failed, falling back to localStorage:', e);
+    try { faces = JSON.parse(localStorage.getItem('face_codes_v9')) || []; } catch { faces = []; }
+  }
+  bindFilters(); render();
+}
+
+function bindFilters() {
+  document.querySelectorAll('.fbtn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const t = btn.dataset.type;
+      document.querySelectorAll(`.fbtn[data-type="${t}"]`).forEach(b => b.classList.remove('on'));
+      btn.classList.add('on');
+      filter[t] = btn.dataset.val;
+      render();
+    });
+  });
+}
+
+function getFiltered() {
+  const kw = document.getElementById('searchInput').value.trim().toLowerCase();
+  return faces.filter(f => {
+    let rOk = filter.region === 'all'
+      || (filter.region === 'cn' && (f.region === 'cn' || f.region === 'both'))
+      || (filter.region === 'sea' && (f.region === 'sea' || f.region === 'both'));
+    return (filter.gender === 'all' || f.gender === filter.gender) && rOk
+      && (!kw || f.name.toLowerCase().includes(kw));
+  });
+}
+
+function render() {
+  const F = getFiltered();
+  const g = document.getElementById('grid');
+  document.getElementById('totalCount').textContent = faces.length;
+  document.getElementById('girlCount').textContent = faces.filter(f=>f.gender==='girl').length;
+  document.getElementById('adultCount').textContent = faces.filter(f=>f.gender==='adult').length;
+  document.getElementById('cnCount').textContent = faces.filter(f=>f.region==='cn'||f.region==='both').length;
+  document.getElementById('seaCount').textContent = faces.filter(f=>f.region==='sea'||f.region==='both').length;
+  if (F.length === 0) {
+    g.innerHTML = `<div class="empty"><div class="empty-ic">&#9632;</div><p style="font-size:13px">${faces.length===0?'还没有脸码<br>点 + 添加第一张吧':'没有符合条件的脸码'}</p></div>`;
+    return;
+  }
+  g.innerHTML = F.map(f => {
+    const tags = [`<span class="ctag ${f.gender==='girl'?'g':'a'}">${f.gender==='girl'?'少女':'成女'}</span>`];
+    const rL = f.region==='cn'?'国服':f.region==='sea'?'新马':'国&新马';
+    const rC = f.region==='cn'?'c':f.region==='sea'?'s':'b';
+    tags.push(`<span class="ctag ${rC}">${rL}</span>`);
+    const has = (f.codes&&Object.values(f.codes).some(v=>v&&v.trim()))||(f.customFields&&f.customFields.some(c=>c.value&&c.value.trim()));
+    const sel = selectedIds.has(f.id) ? ' batch-sel' : '';
+    return `<div class="card${sel}" data-id="${f.id}" onclick="onCardClick('${f.id}', event)" onmousedown="onCardMouseDown('${f.id}')" onmouseup="onCardMouseUp(event)" onmouseleave="onCardMouseLeave()" ontouchstart="onCardTouchStart('${f.id}', event)" ontouchend="onCardTouchEnd(event)" ontouchmove="onCardTouchMove(event)">
+      <div class="ci-wrap">
+        ${f.img?`<img class="ci" src="${f.img}" loading="lazy">`:`<div class="ci-ph">&#9670;</div>`}
+        ${has?'<div class="ci-dot"></div>':''}
+        <div class="ci-badge ctag ${rC}">${rL}</div>
+      </div>
+      <div class="cb"><div class="cn">${esc(f.name)}</div><div class="ctags">${tags.join('')}</div></div>
+      <div class="cb-check"></div>
+    </div>`;
+  }).join('');
+}
+
+function showAddCustomField() {
+  document.getElementById('addCustomBox').style.display='';
+  document.getElementById('newCustomName').value='';
+  document.getElementById('newCustomName').focus();
+}
+function hideAddCustomField() {
+  document.getElementById('addCustomBox').style.display='none';
+  document.getElementById('newCustomName').value='';
+}
+function confirmAddCustom() {
+  const n=document.getElementById('newCustomName').value.trim();
+  if(!n){toast('请输入名称');return;}
+  if(pendingCustomFields.some(f=>f.label===n)){toast('该名称已存在');return;}
+  pendingCustomFields.push({id:'c_'+Date.now(),label:n,value:''});
+  hideAddCustomField(); renderCustomFields();
+}
+function removeCustomField(id){pendingCustomFields=pendingCustomFields.filter(f=>f.id!==id);renderCustomFields();}
+function renderCustomFields() {
+  const c=document.getElementById('customFieldsContainer');
+  if(!pendingCustomFields.length){c.innerHTML='';return;}
+  c.innerHTML=pendingCustomFields.map(f=>`
+    <div class="fsec">
+      <div class="fsec-hd"><span class="fsec-lbl">${esc(f.label)}</span><button class="del-fbtn" onclick="removeCustomField('${f.id}')">&#215;</button></div>
+      <textarea class="fta" id="fc_${f.id}" placeholder="粘贴${esc(f.label)}脸码…">${esc(f.value||'')}</textarea>
+    </div>`).join('');
+}
+
+// Upload & Crop
+document.getElementById('uploadArea').addEventListener('click',e=>{if(e.target.tagName!=='INPUT')document.getElementById('imgInput').click();});
+// 粘贴上传：在添加/编辑弹窗内 Ctrl+V 粘贴图片
+document.getElementById('addModal').addEventListener('paste',e=>{
+  if(!e.clipboardData||!e.clipboardData.items)return;
+  for(const item of e.clipboardData.items){
+    if(item.type.startsWith('image/')){
+      const file=item.getAsFile();
+      if(file){e.preventDefault();startCrop(file);return;}
+    }
+  }
+});
+// 拖放上传：将图片文件拖到上传区域
+const _ua=document.getElementById('uploadArea');
+_ua.addEventListener('dragover',e=>{e.preventDefault();_ua.style.borderColor='var(--accent)';_ua.style.background='#FAF8FF';});
+_ua.addEventListener('dragleave',e=>{_ua.style.borderColor='';_ua.style.background='';});
+_ua.addEventListener('drop',e=>{
+  e.preventDefault();_ua.style.borderColor='';_ua.style.background='';
+  const file=e.dataTransfer.files[0];
+  if(file)startCrop(file);
+});
+function startCrop(file){
+  if(!file)return;
+  // 文件大小检查（超过 30MB 可能导致内存问题）
+  if(file.size>30*1024*1024){toast('图片太大，请选择 30MB 以内的图片');return;}
+  showLoading('正在读取图片…', file.name);
+  const r=new FileReader();
+  r.onload=e=>{
+    const img=new Image();
+    img.onload=()=>{
+      hideLoading();
+      // 图片尺寸检查
+      if(img.naturalWidth<10||img.naturalHeight<10){
+        toast('图片尺寸无效，请重新选择');
+        document.getElementById('imgInput').value='';
+        return;
+      }
+      openCropUI(img);
+    };
+    img.onerror=()=>{
+      hideLoading();
+      toast('图片读取失败，请换一张图片重试');
+      document.getElementById('imgInput').value='';
+    };
+    img.src=e.target.result;
+  };
+  r.onerror=()=>{
+    hideLoading();
+    toast('文件读取失败，请换一张图片重试');
+    document.getElementById('imgInput').value='';
+  };
+  r.readAsDataURL(file);
+}
+function openCropUI(img){
+  C.img=img;C.natW=img.naturalWidth;C.natH=img.naturalHeight;
+  // 先打开 overlay，让 crop-stage 获得实际尺寸，再读取 clientWidth
+  document.getElementById('cropOverlay').classList.add('open');
+  // 读取尺寸前确保 layout 已完成，使用 requestAnimationFrame 等待下一帧
+  requestAnimationFrame(()=>{
+    const stage=document.getElementById('cropStage');
+    // 强制重新计算布局
+    const _w=stage.offsetWidth;
+    const _h=stage.offsetHeight;
+    const sw=stage.clientWidth||_w||window.innerWidth;
+    const sh=stage.clientHeight||_h||(window.innerHeight*0.65);
+    if(sw<10||sh<10){
+      document.getElementById('cropOverlay').classList.remove('open');
+      toast('裁剪界面初始化失败，请重试');
+      document.getElementById('imgInput').value='';
+      return;
+    }
+    const fw=Math.min(sw,360),fh=fw/ASPECT;
+    const fe=document.getElementById('cropFrame');
+    fe.style.width=fw+'px';fe.style.height=fh+'px';
+    fe.style.left=((sw-fw)/2)+'px';fe.style.top=((sh-fh)/2)+'px';
+    C.fw=fw;C.fh=fh;
+    const ia=C.natW/C.natH,fa=fw/fh;
+    let dw,dh;if(ia>fa){dh=fh;dw=dh*ia;}else{dw=fw;dh=dw/ia;}
+    C.dw=dw;C.dh=dh;C.scale=dw/C.natW;
+    C.x=(fw-dw)/2;C.y=(fh-dh)/2;
+    C.minScale=Math.max(fw/C.natW,fh/C.natH);
+    const ci=document.getElementById('cropImg');
+    ci.style.width=C.natW+'px';ci.style.height=C.natH+'px';ci.src=img.src;
+    applyTransform();bindGestures();
+  });
+}
+function applyTransform(){document.getElementById('cropImg').style.transform=`translate(${C.x}px,${C.y}px) scale(${C.scale})`;}
+
+let drag=null,lastDist=0,lastMidX=0,lastMidY=0,lastPinchScale=1;
+function bindGestures(){
+  // 根据设备显示不同操作提示
+  const isTouch='ontouchstart' in window||navigator.maxTouchPoints>0;
+  const hintEl=document.getElementById('cropFootHint');
+  if(hintEl)hintEl.innerHTML=isTouch
+    ?'<b>单指拖动</b> 移动图片 &nbsp;&middot;&nbsp; <b>双指缩放</b> 调整大小'
+    :'<b>鼠标拖动</b> 移动图片 &nbsp;&middot;&nbsp; <b>滚轮缩放</b> 调整大小';
+  C.maxScale=C.minScale*20;
+  const s=document.getElementById('cropStage');
+  s.addEventListener('mousedown',e=>{drag={x:e.clientX,y:e.clientY,ix:C.x,iy:C.y};e.preventDefault();},{passive:false});
+  window.addEventListener('mousemove',e=>{if(!drag)return;C.x=drag.ix+(e.clientX-drag.x);C.y=drag.iy+(e.clientY-drag.y);constrain();applyTransform();e.preventDefault();},{passive:false});
+  window.addEventListener('mouseup',()=>drag=null);
+  // PC 滚轮缩放：以鼠标位置为中心缩放
+  s.addEventListener('wheel',e=>{
+    e.preventDefault();
+    const fe=document.getElementById('cropFrame');
+    const rect=fe.getBoundingClientRect();
+    const mx=e.clientX-rect.left,my=e.clientY-rect.top;
+    const delta=e.deltaY>0?0.92:1.08;
+    const ns=Math.max(C.minScale,Math.min(C.scale*delta,C.maxScale));
+    if(ns===C.scale)return;
+    const sf=ns/C.scale;
+    C.x=mx-(mx-C.x)*sf;C.y=my-(my-C.y)*sf;C.scale=ns;constrain();applyTransform();
+  },{passive:false});
+  s.addEventListener('touchstart',e=>{
+    if(e.touches.length===1)drag={x:e.touches[0].clientX,y:e.touches[0].clientY,ix:C.x,iy:C.y};
+    else if(e.touches.length===2){drag=null;lastDist=getDist(e.touches);lastMidX=getMidX(e.touches);lastMidY=getMidY(e.touches);lastPinchScale=C.scale;}
+    e.preventDefault();
+  },{passive:false});
+  s.addEventListener('touchmove',e=>{
+    if(e.touches.length===1&&drag){C.x=drag.ix+(e.touches[0].clientX-drag.x);C.y=drag.iy+(e.touches[0].clientY-drag.y);constrain();applyTransform();}
+    else if(e.touches.length===2){
+      const d=getDist(e.touches),mx=getMidX(e.touches),my=getMidY(e.touches);
+      const ns=Math.max(C.minScale,Math.min(lastPinchScale*(d/lastDist),C.maxScale));const sf=ns/C.scale;
+      C.x=mx-(mx-C.x)*sf;C.y=my-(my-C.y)*sf;C.scale=ns;constrain();applyTransform();
+      lastDist=d;lastMidX=mx;lastMidY=my;lastPinchScale=ns;
+    }
+    e.preventDefault();
+  },{passive:false});
+  s.addEventListener('touchend',()=>{drag=null;lastDist=0;},{passive:false});
+}
+function constrain(){const cw=C.natW*C.scale,ch=C.natH*C.scale;C.x=Math.max(C.fw-cw,Math.min(0,C.x));C.y=Math.max(C.fh-ch,Math.min(0,C.y));}
+function getDist(t){return Math.sqrt((t[0].clientX-t[1].clientX)**2+(t[0].clientY-t[1].clientY)**2);}
+function getMidX(t){return(t[0].clientX+t[1].clientX)/2;}
+function getMidY(t){return(t[0].clientY+t[1].clientY)/2;}
+function cancelCrop(){document.getElementById('cropOverlay').classList.remove('open');drag=null;document.getElementById('imgInput').value='';}
+function confirmCrop(){
+  const sx=-C.x/C.scale,sy=-C.y/C.scale,sw=C.fw/C.scale,sh=C.fh/C.scale;
+  const cv=document.createElement('canvas');cv.width=OUT_W;cv.height=OUT_W/ASPECT;
+  cv.getContext('2d').drawImage(C.img,sx,sy,sw,sh,0,0,cv.width,cv.height);
+  const pr=document.getElementById('uploadPreview');
+  pr.src=cv.toDataURL('image/jpeg',0.65);pr.style.display='block';pr.className='up-preview';
+  document.getElementById('uploadHint').style.display='none';
+  document.getElementById('cropOverlay').classList.remove('open');drag=null;document.getElementById('imgInput').value='';
+}
+
+// Add Modal
+function openAddModal(edit=null){
+  editingId=edit?edit.id:null;
+  document.getElementById('modalTitle').textContent=edit?'编辑脸码':'添加脸码';
+  document.getElementById('uploadPreview').style.display='none';
+  document.getElementById('uploadHint').style.display='';
+  document.getElementById('imgInput').value='';
+  document.getElementById('faceName').value=edit?edit.name:'';
+  document.getElementById('faceGender').value=edit?edit.gender:'girl';
+  document.getElementById('f_cnBare').value=edit&&edit.codes?(edit.codes.cnBare||''):'';
+  document.getElementById('f_cnMakeup').value=edit&&edit.codes?(edit.codes.cnMakeup||''):'';
+  document.getElementById('f_sea').value=edit&&edit.codes?(edit.codes.sea||''):'';
+  document.getElementById('checkCn').classList.toggle('on',edit?(edit.region==='cn'||edit.region==='both'):true);
+  document.getElementById('checkSea').classList.toggle('on',edit?(edit.region==='sea'||edit.region==='both'):false);
+  pendingCustomFields=edit&&edit.customFields?edit.customFields.map(f=>({...f})):[];
+  renderCustomFields();
+  if(edit&&edit.img){const pr=document.getElementById('uploadPreview');pr.src=edit.img;pr.style.display='block';pr.className='up-preview';document.getElementById('uploadHint').style.display='none';}
+  document.getElementById('addCustomBox').style.display='none';
+  document.getElementById('addModal').classList.add('open');
+}
+function closeAddModal(){document.getElementById('addModal').classList.remove('open');editingId=null;pendingCustomFields=[];}
+function toggleRbox(el){el.classList.toggle('on');}
+function getRegionFromChecks(){
+  const cn=document.getElementById('checkCn').classList.contains('on');
+  const sea=document.getElementById('checkSea').classList.contains('on');
+  if(cn&&sea)return'both';if(cn)return'cn';if(sea)return'sea';return'cn';
+}
+function saveFace(){
+  const name=document.getElementById('faceName').value.trim();
+  const gender=document.getElementById('faceGender').value;
+  const region=getRegionFromChecks();
+  const img=document.getElementById('uploadPreview').src||'';
+  if(!name){toast('请输入脸码名称');return;}
+  const codes={cnBare:(document.getElementById('f_cnBare')||{value:''}).value.trim(),cnMakeup:(document.getElementById('f_cnMakeup')||{value:''}).value.trim(),sea:(document.getElementById('f_sea')||{value:''}).value.trim()};
+  const customFields=pendingCustomFields.map(f=>({id:f.id,label:f.label,value:(document.getElementById('fc_'+f.id)||{value:''}).value.trim()}));
+  const data={id:editingId||Date.now().toString(),name,gender,region,codes,customFields,img};
+  
+  // 查重：检查所有代码字段（国服无妆/带妆/新马服/自定义）是否与已有脸码重复
+  const dup=findAllDuplicates(data,editingId);
+  if(dup.length > 0){
+    showDuplicateModal(data,dup[0],'save');
+    return;
+  }
+  if(editingId){const i=faces.findIndex(x=>x.id===editingId);if(i!==-1)faces[i]=data;}
+  else faces.unshift(data);
+  render();
+  dbPut('faceList', faces).then(() => {
+    closeAddModal();
+    toast(editingId?'已更新':'已保存');
+  }).catch(e => {
+    toast('保存失败');
+  });
+}
+
+// Detail
+function openDetail(id){
+  const f=faces.find(x=>x.id===id);if(!f)return;
+  currentDetailId=id;currentCodes=f.codes||{};currentCustomFields=f.customFields||[];
+  document.getElementById('detailImgWrap').innerHTML=f.img?`<img class="det-img" src="${f.img}">`:`<div class="det-no-img">&#9670;</div>`;
+  document.getElementById('detailName').textContent=f.name;
+  const gL=f.gender==='girl'?'少女体':'成女体';
+  const rL=f.region==='cn'?'国服':f.region==='sea'?'新马服':'国服&新马服';
+  document.getElementById('detailTags').innerHTML=
+    `<span class="ctag ${f.gender==='girl'?'g':'a'}">${gL}</span><span class="ctag ${f.region==='cn'?'c':f.region==='sea'?'s':'b'}">${rL}</span>`;
+  const allFields=[...FIXED.map(x=>({key:x.key,label:x.label,isFixed:true})),...currentCustomFields.map(x=>({key:'cust_'+x.id,label:x.label,isFixed:false}))];
+  document.getElementById('detailCodesContainer').innerHTML=allFields.map(field=>{
+    const code=field.isFixed?(currentCodes[field.key]||''):((currentCustomFields.find(c=>'cust_'+c.id===field.key)||{value:''}).value||'');
+    if(!code)return'';
+    const bid='cpbtn_'+field.key;
+    return`<div class="det-code"><div class="det-code-hd"><span class="det-code-lbl">${esc(field.label)}</span><button class="cpbtn" id="${bid}" onclick="copyCode('${field.key}','${field.isFixed?0:1}')">&#10002; 复制</button></div><div class="code-box"><div class="code-txt">${esc(code)}</div></div></div>`;
+  }).join('');
+  document.getElementById('detailModal').classList.add('open');
+}
+function copyCode(key,isFixed){
+  const code=isFixed==='1'?(currentCustomFields.find(c=>'cust_'+c.id===key)||{value:''}).value||'':(currentCodes[key]||'');
+  if(!code)return;
+  const btn=document.getElementById('cpbtn_'+key);
+  const done=()=>{btn.classList.add('copied');btn.textContent='&#10003; 已复制';toast('已复制到剪贴板');setTimeout(()=>{btn.classList.remove('copied');btn.textContent='&#10002; 复制';},2000);};
+  navigator.clipboard.writeText(code).then(done).catch(()=>{const ta=document.createElement('textarea');ta.value=code;ta.style.cssText='position:fixed;opacity:0';document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);done();});
+}
+function closeDetailModal(){document.getElementById('detailModal').classList.remove('open');currentDetailId=null;}
+function openEditFromDetail(){
+  if(!currentDetailId)return;
+  const f=faces.find(x=>x.id===currentDetailId);
+  if(!f)return;
+  closeDetailModal();
+  openAddModal(f);
+}
+function deleteFace(){if(!confirm('确定要删除这个脸码吗？'))return;faces=faces.filter(f=>f.id!==currentDetailId);render();closeDetailModal();dbPut('faceList', faces).then(()=>toast('已删除')).catch(()=>toast('删除失败'));}
+
+// FAB Menu
+function toggleFabMenu(){const m=document.getElementById('fabMenu'),b=document.getElementById('fabBackdrop');const is=m.classList.contains('show');if(is){m.classList.remove('show');b.classList.remove('show');}else{m.classList.add('show');b.classList.add('show');}}
+function hideFabMenu(){document.getElementById('fabMenu').classList.remove('show');document.getElementById('fabBackdrop').classList.remove('show');}
+
+// Export / Import
+function exportData(){
+  hideFabMenu();
+  if(!faces.length){toast('暂无数据可导出');return;}
+  const blob=new Blob([JSON.stringify(faces,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);const a=document.createElement('a');
+  const d=new Date(),ds=`${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;
+  a.href=url;a.download=`脸码备份_${ds}.json`;document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
+  toast(`已导出 ${faces.length} 条脸码`);
+}
+function openImportModal(){hideFabMenu();pendingImportData=null;document.getElementById('importUpload').style.display='';document.getElementById('importPreviewBox').style.display='none';document.getElementById('importFileInput').value='';document.getElementById('importModal').classList.add('open');}
+function closeImportModal(){document.getElementById('importModal').classList.remove('open');pendingImportData=null;}
+function handleImportFile(file){
+  if(!file)return;
+  const r=new FileReader();
+  r.onload=e=>{try{const data=JSON.parse(e.target.result);if(!Array.isArray(data))throw new Error();pendingImportData=data;document.getElementById('importCount').textContent=data.length;document.getElementById('importUpload').style.display='none';document.getElementById('importPreviewBox').style.display='';}catch{toast('文件格式错误');document.getElementById('importFileInput').value='';}};
+  r.readAsText(file);
+}
+function doImport(mode){
+  if(!pendingImportData)return;
+  if(mode==='replace'){faces=pendingImportData;render();closeImportModal();dbPut('faceList', faces).then(()=>{toast(`已导入 ${faces.length} 条`);}).catch(()=>toast('导入保存失败'));return;}
+  // 合并导入：逐个检测重复
+  pendingImportsAll=[...pendingImportData];
+  pendingImports=[...pendingImportData];
+  skippedDupCount=0;
+  importAutoAction=null;
+  closeImportModal();
+  showImportProgress();
+  processImportQueue();
+}
+function cancelImport(){hideImportProgress();closeImportModal();pendingImportData=null;pendingImports=[];pendingImportsAll=[];}
+
+// ── GitHub 云端同步 ──
+const GH_API = 'https://api.github.com/repos/Tan0709/face-code/contents/cloud-data/faces.json';
+const GH_RAW = 'https://raw.githubusercontent.com/Tan0709/face-code/main/cloud-data/faces.json';
+function getSyncToken(){ return localStorage.getItem('gh_sync_token')||''; }
+function utf8ToBase64(str){
+  const bytes=new TextEncoder().encode(str);
+  let b='';for(let i=0;i<bytes.length;i++)b+=String.fromCharCode(bytes[i]);
+  return btoa(b);
+}
+function base64ToUtf8(b64){
+  const binary=atob(b64.replace(/\n/g,''));
+  const bytes=new Uint8Array(binary.length);
+  for(let i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);
+  return new TextDecoder().decode(bytes);
+}
+function openSyncModal(){
+  hideFabMenu();
+  renderSyncContent();
+  document.getElementById('syncModal').classList.add('open');
+}
+function closeSyncModal(){
+  document.getElementById('syncModal').classList.remove('open');
+}
+function renderSyncContent(){
+  const token=getSyncToken();
+  const el=document.getElementById('syncContent');
+  if(!token){
+    el.innerHTML=`
+      <p style="font-size:13px;color:var(--text-light);text-align:center;line-height:1.7;margin-bottom:14px;">
+        通过 GitHub 仓库同步你的脸码数据到云端<br>换设备也能用
+      </p>
+      <input type="password" id="syncTokenInput" placeholder="粘贴 GitHub Token"
+        style="width:100%;padding:12px 14px;border:1.5px solid var(--border);border-radius:12px;font-size:14px;box-sizing:border-box;margin-bottom:8px;background:var(--bg);font-family:inherit;">
+      <p style="font-size:11px;color:var(--text-lighter);line-height:1.6;margin-bottom:14px;">
+        Token 仅保存在本设备不会上传<br>
+        <a href="https://github.com/settings/tokens/new?scopes=repo" target="_blank" style="color:var(--accent);">&#8599; 点这里创建 Token</a>（需勾选 repo 权限）
+      </p>
+      <button class="btn btn-p" onclick="saveSyncToken()" style="width:100%">保存 Token</button>
+      <button class="btn btn-s" onclick="closeSyncModal()" style="width:100%;margin-top:8px;background:#F5F3F8;">取消</button>
+    `;
+    return;
+  }
+  const lastSync=localStorage.getItem('last_sync_time');
+  const lastSyncStr=lastSync?new Date(parseInt(lastSync)).toLocaleString('zh-CN'):'从未同步';
+  el.innerHTML=`
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 14px;background:var(--bg);border-radius:12px;margin-bottom:10px;">
+      <span style="font-size:13px;color:var(--text-light);">本地数据</span>
+      <span style="font-size:14px;font-weight:600;color:var(--text);">${faces.length} 条</span>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 14px;background:var(--bg);border-radius:12px;margin-bottom:10px;">
+      <span style="font-size:13px;color:var(--text-light);">云端数据</span>
+      <span style="font-size:14px;font-weight:600;color:var(--text);" id="cloudCount">检查中…</span>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 14px;background:var(--bg);border-radius:12px;margin-bottom:14px;">
+      <span style="font-size:13px;color:var(--text-light);">上次同步</span>
+      <span style="font-size:13px;color:var(--text);">${lastSyncStr}</span>
+    </div>
+    <button class="btn btn-p" onclick="cloudSyncUpload()" style="width:100%">&#8657; 上传到云端</button>
+    <p style="font-size:11px;color:var(--text-lighter);text-align:center;margin:6px 0 10px;">仅上传本地新增，云端原有数据保留</p>
+    <button class="btn btn-s" onclick="cloudSyncDownload()" style="width:100%">&#8659; 从云端恢复</button>
+    <p style="font-size:11px;color:var(--text-lighter);text-align:center;margin:6px 0 14px;">拉取云端数据，可选覆盖或仅导入新增</p>
+    <button class="btn btn-s" onclick="removeSyncToken()" style="width:100%;background:#F5F3F8;color:var(--text-light);">移除 Token</button>
+  `;
+  checkCloudStatus();
+}
+async function saveSyncToken(){
+  const val=document.getElementById('syncTokenInput').value.trim();
+  if(!val){toast('请输入 Token');return;}
+  localStorage.setItem('gh_sync_token',val);
+  toast('Token 已保存');
+  renderSyncContent();
+}
+function removeSyncToken(){
+  localStorage.removeItem('gh_sync_token');
+  toast('Token 已移除');
+  renderSyncContent();
+}
+async function checkCloudStatus(){
+  const token=getSyncToken();
+  const el=document.getElementById('cloudCount');
+  if(!el)return;
+  try{
+    const res=await fetch(GH_API,{headers:{'Authorization':`token ${token}`,'Accept':'application/vnd.github.v3+json'}});
+    if(res.status===404){el.textContent='无数据';return;}
+    if(res.status===401||res.status===403){el.textContent='Token 无效';return;}
+    if(!res.ok)throw new Error('status '+res.status);
+    const data=await res.json();
+    // 尝试解析 content 获取条数（小文件可行）
+    if(data.content){
+      try{
+        const parsed=JSON.parse(base64ToUtf8(data.content));
+        el.textContent=(parsed.faces?parsed.faces.length:0)+' 条';
+        return;
+      }catch(e){}
+    }
+    // content 为空或解析失败（文件 >1MB 被 API 截断），显示文件大小
+    const kb=data.size/1024;
+    el.textContent=kb>1024?(kb/1024).toFixed(1)+' MB':kb.toFixed(1)+' KB';
+  }catch(e){
+    el.textContent='检查失败';
+  }
+}
+async function cloudSyncUpload(){
+  const token=getSyncToken();
+  if(!token){toast('请先设置 Token');return;}
+  if(faces.length===0){toast('本地没有数据');return;}
+  showLoading('正在上传…','正在合并数据到云端');
+  try{
+    let sha=null, cloudFaces=[];
+    // 先拉取云端现有数据
+    try{
+      const getRes=await fetch(GH_API,{headers:{'Authorization':`token ${token}`,'Accept':'application/vnd.github.v3+json'}});
+      if(getRes.ok){
+        const f=await getRes.json();
+        sha=f.sha;
+        let jsonStr=null;
+        if(f.content&&f.content.trim()){
+          jsonStr=base64ToUtf8(f.content);
+        }else{
+          // 大文件(>1MB)：content 被截断，改用 raw 直接下载
+          const rawRes=await fetch(GH_RAW+'?t='+Date.now());
+          if(rawRes.ok)jsonStr=await rawRes.text();
+        }
+        if(jsonStr){ const d=JSON.parse(jsonStr); cloudFaces=d.faces||[]; }
+      }
+    }catch(e){}
+    // 筛查：将本地数据分为「新增」与「更新」两类
+    // - 新增：云端完全没有相同代码字段的记录
+    // - 更新：云端有相同代码字段，但内容（如立绘/名称等）与本地不同 → 以本地最新版本覆盖云端
+    const toAdd=[];
+    const toUpdate=[];
+    for(const lf of faces){
+      const match=findCloudMatchByCode(lf, cloudFaces);
+      if(!match){
+        toAdd.push(lf);
+      }else if(!faceContentEqual(lf, match)){
+        toUpdate.push(lf);
+      }
+    }
+    if(toAdd.length===0 && toUpdate.length===0){
+      hideLoading();
+      toast('云端已是最新，无需上传');
+      renderSyncContent();
+      return;
+    }
+    // 合并：云端原有数据，更新项就地替换为本地版本，新增项追加到末尾
+    const merged=cloudFaces.slice();
+    for(const lf of toUpdate){
+      for(let i=0;i<merged.length;i++){
+        if(faceCodeMatch(lf, merged[i])){ merged[i]=lf; break; }
+      }
+    }
+    for(const a of toAdd) merged.push(a);
+    const content=utf8ToBase64(JSON.stringify({faces:merged,timestamp:Date.now(),version:PAGE_VERSION}));
+    const res=await fetch(GH_API,{
+      method:'PUT',
+      headers:{'Authorization':`token ${token}`,'Accept':'application/vnd.github.v3+json','Content-Type':'application/json'},
+      body:JSON.stringify({message:`cloud sync upload: +${toAdd.length} ~${toUpdate.length} (${new Date().toLocaleString('zh-CN')})`,content,...(sha?{sha}:{})})
+    });
+    hideLoading();
+    if(res.ok){
+      localStorage.setItem('last_sync_time',Date.now().toString());
+      const parts=[];
+      if(toAdd.length)parts.push(`新增 ${toAdd.length} 条`);
+      if(toUpdate.length)parts.push(`更新 ${toUpdate.length} 条`);
+      toast(`已上传（${parts.join('、')}），云端共 ${merged.length} 条`);
+      renderSyncContent();
+    }else{
+      const err=await res.json().catch(()=>({}));
+      toast('上传失败: '+(err.message||res.status));
+    }
+  }catch(e){
+    hideLoading();
+    toast('网络错误，上传失败');
+  }
+}
+async function cloudSyncDownload(){
+  const token=getSyncToken();
+  if(!token){toast('请先设置 Token');return;}
+  showLoading('正在下载…','正在从云端获取数据');
+  try{
+    // 先用 API 检查文件是否存在
+    const checkRes=await fetch(GH_API,{headers:{'Authorization':`token ${token}`,'Accept':'application/vnd.github.v3+json'}});
+    if(checkRes.status===404){hideLoading();toast('云端暂无数据');return;}
+    if(!checkRes.ok)throw new Error('status '+checkRes.status);
+    const fileData=await checkRes.json();
+    let jsonStr;
+    if(fileData.content&&fileData.content.trim()){
+      // 小文件(≤1MB)：直接从 API 返回的 content 解码
+      jsonStr=base64ToUtf8(fileData.content);
+    }else{
+      // 大文件(>1MB)：API 会截断 content，改用 raw.githubusercontent.com 直接下载
+      const rawUrl=GH_RAW+'?t='+Date.now();
+      const rawRes=await fetch(rawUrl);
+      if(!rawRes.ok)throw new Error('raw download failed: '+rawRes.status);
+      jsonStr=await rawRes.text();
+    }
+    const data=JSON.parse(jsonStr);
+    const cloudFaces=data.faces||[];
+    hideLoading();
+    if(cloudFaces.length===0){toast('云端数据为空');renderSyncContent();return;}
+    // 分析差异：统计新增条数（云端中本地没有的）
+    let newCount=0;
+    for(const cf of cloudFaces){
+      const dups=findAllDuplicates(cf);
+      if(dups.length===0)newCount++;
+    }
+    showSyncRestoreChoice(cloudFaces,faces.length,newCount,cloudFaces.length-newCount,data);
+  }catch(e){
+    hideLoading();
+    toast('网络错误，下载失败');
+  }
+}
+function showSyncRestoreChoice(cloudFaces,localN,newN,dupN,data){
+  pendingSyncData={cloudFaces,localN,newN,dupN,data};
+  const el=document.getElementById('syncContent');
+  el.innerHTML=`
+    <div style="padding:16px 0;">
+      <div style="text-align:center;margin-bottom:18px;">
+        <div style="font-size:36px;margin-bottom:8px;opacity:0.5;">&#9729;</div>
+        <p style="font-size:14px;color:var(--text);line-height:1.8;margin-bottom:6px;">
+          云端共 <b>${cloudFaces.length}</b> 条脸码<br>
+          本地已有 <b>${localN}</b> 条
+        </p>
+        <p style="font-size:12px;color:var(--text-light);line-height:1.7;">
+          ${newN>0?`其中 <b style="color:var(--accent-dark);">${newN}</b> 条为本地没有的新增数据`:'云端数据与本地完全重复，无新增'}
+          ${dupN>0?`<br>${dupN} 条与本地已有脸码代码字段重复`:''}
+        </p>
+      </div>
+      <button class="btn btn-p" onclick="doSyncOverwrite()" style="width:100%;margin-bottom:8px;">覆盖导入（替换全部本地数据）</button>
+      <button class="btn btn-s" onclick="doSyncMerge()" style="width:100%;margin-bottom:8px;${newN===0?'opacity:0.5;pointer-events:none;':''}">导入新增（添加 ${newN} 条，保留本地数据）</button>
+      <button class="btn btn-s" onclick="renderSyncContent()" style="width:100%;background:#F5F3F8;">取消</button>
+    </div>
+  `;
+}
+function doSyncOverwrite(){
+  if(!pendingSyncData)return;
+  const {cloudFaces,data}=pendingSyncData;
+  faces=cloudFaces;
+  render();
+  dbPut('faceList',faces);
+  if(data.timestamp)localStorage.setItem('last_sync_time',data.timestamp.toString());
+  toast(`已覆盖导入 ${faces.length} 条`);
+  pendingSyncData=null;
+  renderSyncContent();
+}
+function doSyncMerge(){
+  if(!pendingSyncData)return;
+  const {data}=pendingSyncData;
+  const toAdd=[];
+  for(const cf of pendingSyncData.cloudFaces){
+    if(findAllDuplicates(cf).length===0)toAdd.push(cf);
+  }
+  if(toAdd.length===0){
+    toast('没有新增数据可导入');
+    pendingSyncData=null;
+    renderSyncContent();
+    return;
+  }
+  faces.unshift(...toAdd);
+  render();
+  dbPut('faceList',faces);
+  if(data.timestamp)localStorage.setItem('last_sync_time',data.timestamp.toString());
+  toast(`已导入新增 ${toAdd.length} 条，本地共 ${faces.length} 条`);
+  pendingSyncData=null;
+  renderSyncContent();
+}
+
+function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2200);}
+function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+// ── Loading Overlay ──
+function showLoading(title, msg) {
+  document.getElementById('loadingTitle').textContent = title || '处理中…';
+  document.getElementById('loadingMsg').textContent = msg || '';
+  document.getElementById('loadingOverlay').classList.add('open');
+}
+function hideLoading() {
+  document.getElementById('loadingOverlay').classList.remove('open');
+}
+
+// ── Import Progress ──
+function showImportProgress() {
+  document.getElementById('importProgressBox').classList.add('show');
+  document.getElementById('importBtns').style.display = 'none';
+  updateImportProgress(0);
+}
+function updateImportProgress(pct, label) {
+  const total = pendingImportsAll.length;
+  const done = total - pendingImports.length;
+  const p = total > 0 ? Math.round((done / total) * 100) : 0;
+  document.getElementById('importProgressFill').style.width = p + '%';
+  document.getElementById('importProgressPct').textContent = p + '%';
+  if (label) document.getElementById('importProgressLabel').textContent = label;
+  else document.getElementById('importProgressLabel').textContent = `正在导入 ${done}/${total}…`;
+}
+function hideImportProgress() {
+  document.getElementById('importProgressBox').classList.remove('show');
+  document.getElementById('importBtns').style.display = '';
+}
+
+// ── 批量操作 ──
+function enterBatchMode() {
+  batchMode = true;
+  selectedIds.clear();
+  document.getElementById('batchBar').classList.add('show');
+  document.body.classList.add('batch-active');
+  updateBatchCount();
+  render();
+}
+
+function exitBatchMode() {
+  batchMode = false;
+  selectedIds.clear();
+  document.getElementById('batchBar').classList.remove('show');
+  document.body.classList.remove('batch-active');
+  render();
+}
+
+function updateBatchCount() {
+  const F = getFiltered();
+  const allVisibleIds = F.map(f => f.id);
+  const allSelected = allVisibleIds.length > 0 && allVisibleIds.every(id => selectedIds.has(id));
+  const btn = document.getElementById('batchSelectAll');
+  btn.innerHTML = `<span>&#10003;</span> ${allSelected ? '取消全选' : '全选'}`;
+  btn.className = 'batch-btn ' + (allSelected ? 'exit' : 'select-all');
+  document.getElementById('batchCount').textContent = selectedIds.size;
+}
+
+function onCardTouchStart(id, e) {
+  if (!batchMode) {
+    longPressTimer = setTimeout(() => {
+      longPressTimer = null;
+      enterBatchMode();
+      selectedIds.add(id);
+      updateBatchCount();
+      render();
+    }, LONG_PRESS_MS);
+  }
+}
+
+function onCardTouchMove(e) {
+  if (longPressTimer) {
+    clearTimeout(longPressTimer);
+    longPressTimer = null;
+  }
+}
+
+// 鼠标长按（PC端）
+let mouseDownId = null;
+function onCardMouseDown(id) {
+  if (!batchMode) {
+    mouseDownId = id;
+    longPressTimer = setTimeout(() => {
+      longPressTimer = null;
+      mouseDownId = null;
+      enterBatchMode();
+      selectedIds.add(id);
+      updateBatchCount();
+      render();
+    }, LONG_PRESS_MS);
+  }
+}
+function onCardMouseUp(e) {
+  if (longPressTimer) {
+    clearTimeout(longPressTimer);
+    longPressTimer = null;
+  }
+  mouseDownId = null;
+}
+function onCardMouseLeave() {
+  if (longPressTimer) {
+    clearTimeout(longPressTimer);
+    longPressTimer = null;
+  }
+  mouseDownId = null;
+}
+
+function onCardTouchEnd(e) {
+  if (longPressTimer) {
+    clearTimeout(longPressTimer);
+    longPressTimer = null;
+  }
+}
+
+function onCardClick(id, e) {
+  if (!batchMode) {
+    openDetail(id);
+    return;
+  }
+  e.stopPropagation();
+  if (selectedIds.has(id)) {
+    selectedIds.delete(id);
+  } else {
+    selectedIds.add(id);
+  }
+  // 如果取消选择后没有选中任何项，自动退出批量模式
+  if (selectedIds.size === 0) {
+    exitBatchMode();
+    return;
+  }
+  updateBatchCount();
+  const card = document.querySelector(`.card[data-id="${id}"]`);
+  if (card) {
+    card.classList.toggle('batch-sel', selectedIds.has(id));
+  }
+}
+
+function batchSelectAll() {
+  const F = getFiltered();
+  const allVisibleIds = F.map(f => f.id);
+  const allSelected = allVisibleIds.length > 0 && allVisibleIds.every(id => selectedIds.has(id));
+  if (allSelected) {
+    // 取消全选：清空所有
+    allVisibleIds.forEach(id => selectedIds.delete(id));
+  } else {
+    // 全选：选中所有当前可见的
+    allVisibleIds.forEach(id => selectedIds.add(id));
+  }
+  updateBatchCount();
+  render();
+}
+
+function batchDelete() {
+  if (selectedIds.size === 0) return;
+  const count = selectedIds.size;
+  if (!confirm(`确定要删除选中的 ${count} 个脸码吗？`)) return;
+  faces = faces.filter(f => !selectedIds.has(f.id));
+  dbPut('faceList', faces).then(() => {
+    exitBatchMode();
+    toast(`已删除 ${count} 个脸码`);
+  }).catch(() => toast('删除失败'));
+}
+
+function batchExport() {
+  if (selectedIds.size === 0) return;
+  const toExport = faces.filter(f => selectedIds.has(f.id));
+  const blob = new Blob([JSON.stringify(toExport, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const d = new Date(), ds = `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;
+  a.href = url;
+  a.download = `脸码备份_${ds}_选中${toExport.length}条.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  toast(`已导出 ${toExport.length} 条脸码`);
+}
+
+// 查找重复：返回第一个发现重复的已有脸码，及其匹配字段
+function findDuplicate(newFace, excludeId = null) {
+  const newCodes = newFace.codes || {};
+  const newCustom = newFace.customFields || [];
+  // 收集所有非空的待检测值
+  const toCheck = [];
+  for (const [k, v] of Object.entries(newCodes)) {
+    if (v && v.trim()) toCheck.push({ key: k, val: v.trim(), isFixed: true });
+  }
+  for (const c of newCustom) {
+    if (c.value && c.value.trim()) toCheck.push({ key: 'cust_' + c.id, val: c.value.trim(), isFixed: false, label: c.label });
+  }
+  if (toCheck.length === 0) return null;
+
+  for (const exist of faces) {
+    if (exist.id === excludeId) continue;
+    const existCodes = exist.codes || {};
+    const existCustom = exist.customFields || [];
+    for (const { key, val, isFixed, label } of toCheck) {
+      let existVal = '';
+      if (isFixed) {
+        existVal = existCodes[key] || '';
+      } else {
+        const f = existCustom.find(c => 'cust_' + c.id === key);
+        if (f) existVal = f.value || '';
+      }
+      if (existVal.trim() === val) {
+        return { exist, matchedKey: key, isFixed, label: label || (FIXED.find(f => f.key === key) || { label: key }).label };
+      }
+    }
+  }
+  return null;
+}
+
+// ── 重复检测 ──
+// 查找所有重复：返回 [{exist, matchedKey, label}] 列表
+function findAllDuplicates(newFace, excludeId = null) {
+  const newCodes = newFace.codes || {};
+  const newCustom = newFace.customFields || [];
+  const toCheck = [];
+  for (const [k, v] of Object.entries(newCodes)) {
+    if (v && v.trim()) toCheck.push({ key: k, val: v.trim(), isFixed: true });
+  }
+  for (const c of newCustom) {
+    if (c.value && c.value.trim()) toCheck.push({ key: 'cust_' + c.id, val: c.value.trim(), isFixed: false, label: c.label });
+  }
+  if (toCheck.length === 0) return [];
+
+  const results = [];
+  for (const exist of faces) {
+    if (exist.id === excludeId) continue;
+    const existCodes = exist.codes || {};
+    const existCustom = exist.customFields || [];
+    for (const { key, val, isFixed, label } of toCheck) {
+      let existVal = '';
+      if (isFixed) {
+        existVal = existCodes[key] || '';
+      } else {
+        const f = existCustom.find(c => 'cust_' + c.id === key);
+        if (f) existVal = f.value || '';
+      }
+      if (existVal.trim() === val) {
+        results.push({ exist, matchedKey: key, isFixed, label: label || (FIXED.find(fx => fx.key === key) || { label: key }).label });
+      }
+    }
+  }
+  return results;
+}
+
+// 取脸码所有非空代码字段，用于匹配/查重
+function getNonEmptyCodeChecks(face){
+  const codes = face.codes || {};
+  const custom = face.customFields || [];
+  const list = [];
+  for (const [k, v] of Object.entries(codes)) {
+    if (v && v.trim()) list.push({ key: k, val: v.trim(), isFixed: true });
+  }
+  for (const c of custom) {
+    if (c.value && c.value.trim()) list.push({ key: 'cust_' + c.id, val: c.value.trim(), isFixed: false });
+  }
+  return list;
+}
+// 判断两条脸码是否有任一相同代码字段值（a 无代码字段则返回 false）
+function faceCodeMatch(a, b){
+  const checks = getNonEmptyCodeChecks(a);
+  if (checks.length === 0) return false;
+  const bCodes = b.codes || {};
+  const bCustom = b.customFields || [];
+  for (const { key, val, isFixed } of checks) {
+    let bVal = '';
+    if (isFixed) bVal = bCodes[key] || '';
+    else { const f = bCustom.find(c => 'cust_' + c.id === key); if (f) bVal = f.value || ''; }
+    if (bVal.trim() === val) return true;
+  }
+  return false;
+}
+// 在云端数组里找与本地脸码代码字段匹配的记录
+function findCloudMatchByCode(lf, cloudFaces){
+  for (const exist of cloudFaces) {
+    if (faceCodeMatch(lf, exist)) return exist;
+  }
+  return null;
+}
+// 规范化比较：忽略字段顺序差异，内容一致才算相同
+function normalizeCodes(codes){ return Object.keys(codes||{}).sort().reduce((acc,k)=>{acc[k]=codes[k];return acc;},{}); }
+function normalizeCustom(cf){ return (cf||[]).slice().sort((x,y)=>String(x.id).localeCompare(String(y.id))); }
+function faceContentEqual(a, b){
+  if ((a.name||'') !== (b.name||'')) return false;
+  if ((a.gender||'') !== (b.gender||'')) return false;
+  if ((a.region||'') !== (b.region||'')) return false;
+  if (JSON.stringify(normalizeCodes(a.codes)) !== JSON.stringify(normalizeCodes(b.codes))) return false;
+  if (JSON.stringify(normalizeCustom(a.customFields)) !== JSON.stringify(normalizeCustom(b.customFields))) return false;
+  if ((a.img||'') !== (b.img||'')) return false;
+  return true;
+}
+
+// 显示重复弹窗（单条保存/导入时显示匹配信息）
+function showDuplicateModal(newFace, dupInfo, mode) {
+  pendingDup = { mode, newFace, dupInfo };
+  const exist = dupInfo.exist;
+  const imgHtml = exist.img
+    ? `<img src="${exist.img}" style="width:60px;height:80px;object-fit:cover;border-radius:10px;flex-shrink:0;">`
+    : `<div style="width:60px;height:80px;background:linear-gradient(145deg,#F5F0FA,#F0F5FA);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:24px;opacity:0.4;flex-shrink:0;">&#9670;</div>`;
+  const fieldLabel = dupInfo.label || (FIXED.find(f=>f.key===dupInfo.matchedKey)||{label:dupInfo.matchedKey}).label;
+  document.getElementById('dupInfo').innerHTML = `
+    <div style="display:flex;gap:14px;align-items:center;padding:14px;background:var(--bg);border-radius:16px;margin-bottom:14px;">
+      ${imgHtml}
+      <div>
+        <div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:4px;">${esc(exist.name)}</div>
+        <div style="font-size:12px;color:var(--text-light);">已有相同 <b style="color:var(--accent-dark)">${esc(fieldLabel)}</b> 脸码</div>
+      </div>
+    </div>
+    <p style="font-size:13px;color:var(--text-light);text-align:center;line-height:1.7;">
+      ${mode === 'import' ? '导入的脸码与已有的重复，请选择处理方式' : '检测到该脸码内容已存在，请选择处理方式'}
+    </p>
+  `;
+  const cancelBtn = document.getElementById('dupCancelBtn');
+  cancelBtn.textContent = mode === 'import' ? '跳过此条' : '取消保存';
+  // 导入模式且队列中还有更多项时，显示"全部替换"/"全部跳过"按钮
+  const showAll = mode === 'import' && pendingImports.length > 1;
+  document.getElementById('dupAllReplaceRow').style.display = showAll ? '' : 'none';
+  document.getElementById('dupAllSkipRow').style.display = showAll ? '' : 'none';
+  document.getElementById('dupModal').classList.add('open');
+}
+
+function dupAction(action) {
+  document.getElementById('dupModal').classList.remove('open');
+  if (!pendingDup) return;
+  const { mode, newFace, dupInfo } = pendingDup;
+  pendingDup = null;
+  if (action === 'cancel' || action === 'skip') {
+    // 取消/跳过：什么都不做
+  } else if (action === 'replace' || action === 'replace_all') {
+    // 替换：删除旧的，保存新的
+    faces = faces.filter(f => f.id !== dupInfo.exist.id);
+    faces.unshift({ ...newFace, id: dupInfo.exist.id });
+    if (action === 'replace_all') importAutoAction = 'replace';
+  }
+  if (mode === 'save') {
+    // 保存流程：操作完后继续保存或取消
+    if (action === 'replace') {
+      render();
+      closeAddModal();
+      dbPut('faceList', faces).then(() => toast('已替换保存')).catch(() => toast('保存失败'));
+    }
+    // cancel 什么都不做，保持弹窗关闭、编辑器开着
+  } else if (mode === 'import') {
+    // 导入流程：继续处理队列
+    if (action === 'skip_all') importAutoAction = 'skip';
+    pendingImports.shift();
+    if (action === 'cancel' || action === 'skip' || action === 'skip_all') skippedDupCount++;
+    processImportQueue();
+  }
+}
+
+function processImportQueue() {
+  if (pendingImports.length === 0) {
+    closeImportModal();
+    hideImportProgress();
+    render();
+    dbPut('faceList', faces).then(() => {
+      const total = pendingImportsAll.length;
+      const skipped = skippedDupCount;
+      importAutoAction = null;
+      toast(`导入完成：新增 ${total - skipped} 条${skipped > 0 ? `，跳过 ${skipped} 条` : ''}`);
+    }).catch(() => toast('导入保存失败'));
+    return;
+  }
+  const total = pendingImportsAll.length;
+  const done = total - pendingImports.length;
+  updateImportProgress(Math.round((done / total) * 100));
+
+  const f = pendingImports[0];
+  // 注意：导入查重时不传 excludeId，因为导入的脸码还没进 faces 列表，
+  // 不会自重复。如果传了 f.id 反而会把已有同 id 的脸码排除掉，导致查重失效。
+  const allDups = findAllDuplicates(f, null);
+  if (allDups.length > 0) {
+    if (importAutoAction === 'replace') {
+      // 自动替换：不弹窗，直接覆盖
+      faces = faces.filter(x => x.id !== allDups[0].exist.id);
+      faces.unshift({ ...f, id: allDups[0].exist.id });
+      pendingImports.shift();
+      processImportQueue();
+    } else if (importAutoAction === 'skip') {
+      // 自动跳过：不弹窗，直接跳过
+      pendingImports.shift();
+      skippedDupCount++;
+      processImportQueue();
+    } else {
+      // 弹窗让用户选择
+      showDuplicateModal(f, allDups[0], 'import');
+    }
+  } else {
+    faces.unshift(f);
+    pendingImports.shift();
+    processImportQueue();
+  }
+}
+
+document.querySelectorAll('.modal-ov').forEach(ov=>{ov.addEventListener('click',e=>{if(e.target===ov)ov.classList.remove('open');});});
+
+// PWA Service Worker
+const SW_VERSION = 22;
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js?v=' + SW_VERSION + '&t=' + Date.now()).catch(() => {});
+}
+
+// 监听 Service Worker 发来的刷新指令
+window.addEventListener('message', e => {
+  if (e.data && e.data.type === 'RELOAD_PAGE') {
+    window.location.reload(true);
+  }
+});
+
+// ── 滚动跳转 ──
+window.addEventListener('scroll', () => {
+  const jb = document.getElementById('jumpBtns');
+  if (!jb) return;
+  if (window.scrollY > 300) {
+    jb.classList.add('show');
+  } else {
+    jb.classList.remove('show');
+  }
+}, { passive: true });
+
+function scrollToTop() {
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+function scrollToBottom() {
+  window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+}
+
+// ── 全量内容查重 ──
+function checkAllDuplicates() {
+  hideFabMenu();
+  if (faces.length === 0) {
+    toast('还没有脸码');
+    return;
+  }
+  const groups = {};
+  // 收集所有有内容的字段键
+  const ALL_KEYS = ['cnBare', 'cnMakeup', 'sea'];
+
+  faces.forEach(f => {
+    const codes = f.codes || {};
+    const custom = f.customFields || [];
+    // 遍历固定字段
+    ALL_KEYS.forEach(k => {
+      const v = (codes[k] || '').trim();
+      if (!v) return;
+      if (!groups[k]) groups[k] = {};
+      if (!groups[k][v]) groups[k][v] = [];
+      groups[k][v].push(f);
+    });
+    // 遍历自定义字段
+    custom.forEach(c => {
+      const v = (c.value || '').trim();
+      if (!v) return;
+      const k = 'cust_' + c.id;
+      if (!groups[k]) groups[k] = {};
+      if (!groups[k][v]) groups[k][v] = [];
+      groups[k][v].push(f);
+    });
+  });
+
+  // 过滤出重复的
+  const dups = [];
+  Object.entries(groups).forEach(([k, valMap]) => {
+    Object.entries(valMap).forEach(([v, arr]) => {
+      if (arr.length >= 2) {
+        const label = k.startsWith('cust_') ? (customFields_map[k.replace('cust_','')] || k) : (FIXED.find(fx=>fx.key===k)||{label:k}).label;
+        dups.push({ key: k, label, value: v, faces: arr });
+      }
+    });
+  });
+
+  checkAllDuplicates.__lastDups = dups;
+  if (dups.length === 0) {
+    openDupListModal([]);
+  } else {
+    openDupListModal(dups);
+  }
+}
+
+// 用于查重弹窗中快速查找自定义字段名
+function getCustomFieldLabel(id) {
+  for (const f of faces) {
+    const c = (f.customFields||[]).find(x=>x.id===id);
+    if (c) return c.label;
+  }
+  // 也查 pending 里的
+  for (const c of pendingCustomFields) {
+    if (c.id === id) return c.label;
+  }
+  return id;
+}
+function customFields_map(id) { return getCustomFieldLabel(id); }
+
+let dupListSelected = new Set();
+let dupListAllIds = [];
+
+function openDupListModal(dups) {
+  dupListSelected.clear();
+  const body = document.getElementById('dupListBody');
+  if (dups.length === 0) {
+    dupListAllIds = [];
+    body.innerHTML = `<div style="text-align:center;padding:30px 0;color:var(--text-lighter);font-size:14px;">
+      <div style="font-size:36px;margin-bottom:10px;">&#10004;</div>
+      <div>没有重复内容</div>
+      <div style="margin-top:6px;font-size:12px;">各脸码的脸码内容均唯一</div>
+    </div>`;
+    document.getElementById('dupActionBar').style.display = 'none';
+    document.getElementById('dupCloseBar').style.display = '';
+  } else {
+    // 收集所有脸的 id
+    const allIds = new Set();
+    dups.forEach(g => g.faces.forEach(f => allIds.add(f.id)));
+    dupListAllIds = [...allIds];
+
+    body.innerHTML = dups.map(d => `
+      <div style="margin-bottom:14px;padding:12px 14px;background:var(--bg);border-radius:14px;">
+        <div style="font-size:12px;color:var(--accent-dark);font-weight:500;margin-bottom:6px;">${esc(d.label)} 重复 (${d.faces.length}条)</div>
+        ${d.faces.map((f, rowIdx) => {
+          const sel = dupListSelected.has(f.id);
+          return `
+          <div style="display:flex;align-items:center;gap:10px;padding:6px 0;cursor:pointer;" data-dupid="${f.id}" data-dupidx="${f.id}_${rowIdx}" onclick="toggleDupSelect('${f.id}', '${f.id}_${rowIdx}', event)">
+            <div id="dupchk_${f.id}_${rowIdx}" style="width:20px;height:20px;border-radius:50%;border:1.5px solid ${sel?'var(--accent)':'var(--border)'};background:${sel?'var(--accent)':'var(--card)'};display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all 0.15s;">
+              ${sel ? '<div style="width:10px;height:6px;background-image:url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2710%27 height=%276%27 viewBox=%270 0 10 6%27%3E%3Cpath d=%27M1 3l3 3 5-6%27 stroke=%27%23fff%27 stroke-width=%271.8%27 fill=%27none%27 stroke-linecap=%27round%27/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:center;"></div>' : ''}
+            </div>
+            <div style="width:32px;height:43px;border-radius:7px;overflow:hidden;flex-shrink:0;background:#F0F0F0;">
+              ${f.img ? `<img src="${f.img}" style="width:100%;height:100%;object-fit:cover;">` : '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:14px;opacity:0.4;">&#9670;</div>'}
+            </div>
+            <div style="flex:1;min-width:0;" onclick="jumpToFace('${f.id}')">
+              <div style="font-size:13px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(f.name)}</div>
+              <div style="font-size:11px;color:var(--text-light);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(d.value.substring(0,40))}${d.value.length>40?'…':''}</div>
+            </div>
+            <div style="font-size:12px;color:var(--text-lighter);" onclick="jumpToFace('${f.id}')">&#10140;</div>
+          </div>`;
+        }).join('')}
+      </div>
+    `).join('');
+    document.getElementById('dupActionBar').style.display = '';
+    document.getElementById('dupCloseBar').style.display = 'none';
+    updateDupActionBar();
+  }
+  document.getElementById('dupListModal').classList.add('open');
+}
+
+function toggleDupSelect(id, idx, e) {
+  e.stopPropagation();
+  if (dupListSelected.has(id)) {
+    dupListSelected.delete(id);
+  } else {
+    dupListSelected.add(id);
+  }
+  updateDupCheckUI(id, idx);
+  updateDupActionBar();
+}
+
+function updateDupCheckUI(id, idx) {
+  const circle = document.getElementById('dupchk_' + id + '_' + idx);
+  if (!circle) return;
+  const sel = dupListSelected.has(id);
+  circle.style.borderColor = sel ? 'var(--accent)' : 'var(--border)';
+  circle.style.background = sel ? 'var(--accent)' : 'var(--card)';
+  circle.innerHTML = sel ? '<div style="width:10px;height:6px;background-image:url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2710%27 height=%276%27 viewBox=%270 0 10 6%27%3E%3Cpath d=%27M1 3l3 3 5-6%27 stroke=%27%23fff%27 stroke-width=%271.8%27 fill=%27none%27 stroke-linecap=%27round%27/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:center;"></div>' : '';
+}
+
+function selectAllDup() {
+  if (dupListSelected.size === dupListAllIds.length) {
+    dupListSelected.clear();
+    document.getElementById('dupSelectAllBtn').textContent = '全选';
+  } else {
+    dupListAllIds.forEach(id => dupListSelected.add(id));
+    document.getElementById('dupSelectAllBtn').textContent = '取消全选';
+  }
+  // Re-render to update all check states
+  document.getElementById('dupListModal').classList.remove('open');
+  checkAllDuplicates.__lastDups && openDupListModal(checkAllDuplicates.__lastDups);
+}
+
+function updateDupActionBar() {
+  const n = dupListSelected.size;
+  const total = dupListAllIds.length;
+  const selAll = n > 0 && n === total;
+  document.getElementById('dupSelectAllBtn').textContent = selAll ? '取消全选' : '全选';
+  document.getElementById('dupSelectedInfo').textContent = n > 0 ? `已选 ${n} 项` : `点击勾选要删除的脸码`;
+  document.getElementById('dupDelBtn').disabled = n === 0;
+  document.getElementById('dupDelBtn').style.opacity = n === 0 ? '0.5' : '1';
+}
+
+function deleteSelectedDup() {
+  const ids = [...dupListSelected];
+  if (ids.length === 0) return;
+  if (!confirm(`确定要删除选中的 ${ids.length} 个脸码吗？`)) return;
+  faces = faces.filter(f => !dupListSelected.has(f.id));
+  render();
+  dbPut('faceList', faces).then(() => {
+    closeDupListModal();
+    toast(`已删除 ${ids.length} 个脸码`);
+  }).catch(() => toast('删除失败'));
+}
+
+function closeDupListModal() {
+  document.getElementById('dupListModal').classList.remove('open');
+  dupListSelected.clear();
+}
+
+function jumpToFace(id) {
+  document.getElementById('dupListModal').classList.remove('open');
+  const F = getFiltered();
+  if (!F.find(f => f.id === id)) {
+    toast('该脸码不在当前筛选结果中');
+    return;
+  }
+  scrollToTop();
+  setTimeout(() => {
+    const el = document.querySelector(`.card[data-id="${id}"]`);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el.style.outline = '2.5px solid var(--accent)';
+      el.style.outlineOffset = '3px';
+      setTimeout(() => { el.style.outline = ''; el.style.outlineOffset = ''; }, 2000);
+    }
+  }, 300);
+}
+
+init();
+</script>
+<div style="text-align:center;font-size:8px;color:#e0dce8;padding:8px 0 4px;line-height:1;">v2.4.05</div>
+</body>
+</html>
