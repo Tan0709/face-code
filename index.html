@@ -1,8 +1,13 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta http-equiv="refresh" content="0;url=face-code-manager.html">
+<meta charset="utf-8">
 <title>脸码收纳册</title>
+<script>
+  // 保留原始 query 参数跳转到主文件，便于绕过 CDN/网络层缓存（如 ?r=日期）
+  var q = location.search || '';
+  location.replace('face-code-manager.html' + q);
+</script>
 </head>
 <body>
 <p>正在跳转… <a href="face-code-manager.html">点击这里</a></p>
