@@ -1215,7 +1215,7 @@ function renderSyncContent(){
       <span style="font-size:13px;color:var(--text);">${lastSyncStr}</span>
     </div>
     <button class="btn btn-p" onclick="cloudSyncUpload()" style="width:100%">&#8657; 上传到云端</button>
-    <p style="font-size:11px;color:var(--text-lighter);text-align:center;margin:6px 0 10px;">仅上传本地新增，云端原有数据保留</p>
+    <p style="font-size:11px;color:var(--text-lighter);text-align:center;margin:6px 0 10px;">上传本地新增与改动（以本地为准），云端其余数据保留</p>
     <button class="btn btn-s" onclick="cloudSyncDownload()" style="width:100%">&#8659; 从云端恢复</button>
     <p style="font-size:11px;color:var(--text-lighter);text-align:center;margin:6px 0 14px;">拉取云端数据，可选覆盖或仅导入新增</p>
     <button class="btn btn-s" onclick="removeSyncToken()" style="width:100%;background:#F5F3F8;color:var(--text-light);">移除 Token</button>
