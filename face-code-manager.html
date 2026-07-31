@@ -739,7 +739,7 @@
 <script>
 const DB_NAME = 'FaceCodeDB_v1';
 const STORE_KEY = 'faces';
-const PAGE_VERSION = 'v2.4.10'; // 版本标记，CDN缓存检测用
+const PAGE_VERSION = 'v2.4.11'; // 版本标记，CDN缓存检测用
 const FIXED = [{key:'cnBare',label:'国服无妆'},{key:'cnMakeup',label:'国服带妆'},{key:'sea',label:'新马服'}];
 const ASPECT = 6/9, OUT_W = 300;
 let faces = [], filter = {gender:'all',region:'all'};
@@ -1832,7 +1832,7 @@ function processImportQueue() {
 document.querySelectorAll('.modal-ov').forEach(ov=>{ov.addEventListener('click',e=>{if(e.target===ov)ov.classList.remove('open');});});
 
 // PWA Service Worker
-const SW_VERSION = 25;
+const SW_VERSION = 26;
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js?v=' + SW_VERSION).catch(() => {});
   // 新 SW 接管时强制刷新当前页面，确保拿到最新内容
