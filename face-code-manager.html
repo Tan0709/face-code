@@ -907,37 +907,34 @@ _ua.addEventListener('drop',e=>{
   const file=e.dataTransfer.files[0];
   if(file)startCrop(file);
 });
+let _cropUrl=null; // 当前裁剪用的 ObjectURL，用完释放避免内存泄漏
 function startCrop(file){
   if(!file)return;
   // 文件大小检查（超过 30MB 可能导致内存问题）
   if(file.size>30*1024*1024){toast('图片太大，请选择 30MB 以内的图片');return;}
   showLoading('正在读取图片…', file.name);
-  const r=new FileReader();
-  r.onload=e=>{
-    const img=new Image();
-    img.onload=()=>{
-      hideLoading();
-      // 图片尺寸检查
-      if(img.naturalWidth<10||img.naturalHeight<10){
-        toast('图片尺寸无效，请重新选择');
-        document.getElementById('imgInput').value='';
-        return;
-      }
-      openCropUI(img);
-    };
-    img.onerror=()=>{
-      hideLoading();
-      toast('图片读取失败，请换一张图片重试');
-      document.getElementById('imgInput').value='';
-    };
-    img.src=e.target.result;
-  };
-  r.onerror=()=>{
+  // 用 ObjectURL 替代 FileReader.readAsDataURL：同步、零拷贝，避免大图在主线程逐字节编码 base64 造成卡顿
+  if(_cropUrl)URL.revokeObjectURL(_cropUrl);
+  _cropUrl=URL.createObjectURL(file);
+  const img=new Image();
+  img.onload=()=>{
     hideLoading();
-    toast('文件读取失败，请换一张图片重试');
+    // 图片尺寸检查
+    if(img.naturalWidth<10||img.naturalHeight<10){
+      URL.revokeObjectURL(_cropUrl);_cropUrl=null;
+      toast('图片尺寸无效，请重新选择');
+      document.getElementById('imgInput').value='';
+      return;
+    }
+    openCropUI(img);
+  };
+  img.onerror=()=>{
+    hideLoading();
+    URL.revokeObjectURL(_cropUrl);_cropUrl=null;
+    toast('图片读取失败，请换一张图片重试');
     document.getElementById('imgInput').value='';
   };
-  r.readAsDataURL(file);
+  img.src=_cropUrl;
 }
 function openCropUI(img){
   C.img=img;C.natW=img.naturalWidth;C.natH=img.naturalHeight;
@@ -1020,7 +1017,7 @@ function constrain(){const cw=C.natW*C.scale,ch=C.natH*C.scale;C.x=Math.max(C.fw
 function getDist(t){return Math.sqrt((t[0].clientX-t[1].clientX)**2+(t[0].clientY-t[1].clientY)**2);}
 function getMidX(t){return(t[0].clientX+t[1].clientX)/2;}
 function getMidY(t){return(t[0].clientY+t[1].clientY)/2;}
-function cancelCrop(){document.getElementById('cropOverlay').classList.remove('open');drag=null;document.getElementById('imgInput').value='';}
+function cancelCrop(){document.getElementById('cropOverlay').classList.remove('open');drag=null;document.getElementById('imgInput').value='';if(_cropUrl){URL.revokeObjectURL(_cropUrl);_cropUrl=null;}}
 function confirmCrop(){
   const sx=-C.x/C.scale,sy=-C.y/C.scale,sw=C.fw/C.scale,sh=C.fh/C.scale;
   const cv=document.createElement('canvas');cv.width=OUT_W;cv.height=OUT_W/ASPECT;
@@ -1029,6 +1026,7 @@ function confirmCrop(){
   pr.src=cv.toDataURL('image/jpeg',0.5);pr.style.display='block';pr.className='up-preview';
   document.getElementById('uploadHint').style.display='none';
   document.getElementById('cropOverlay').classList.remove('open');drag=null;document.getElementById('imgInput').value='';
+  if(_cropUrl){URL.revokeObjectURL(_cropUrl);_cropUrl=null;}
 }
 
 // Add Modal
